@@ -1,39 +1,86 @@
-import React, { useState, useRef } from 'react';
-import { Upload, X } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Upload, X, Loader, RefreshCw, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 
-const MultiAudioUploaderForm = () => {
-  // State to store the list of uploaded audio files
+const MultiAudioUploaderForm = ({ onTranscriptionCreated }) => {
   const [audioFiles, setAudioFiles] = useState([]);
-  // State to manage form submission
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Ref for the file input element
+  const [transcriptionStatus, setTranscriptionStatus] = useState(null);
+  const [transcriptionUrl, setTranscriptionUrl] = useState(null);
   const fileInputRef = useRef(null);
 
-  // Handler for file input changes
   const handleFileChange = event => {
     const files = Array.from(event.target.files);
-    // Filter out non-audio files
     const newAudioFiles = files.filter(file => file.type.startsWith('audio/'));
-    // Add new audio files to the existing list
     setAudioFiles(prevFiles => [...prevFiles, ...newAudioFiles]);
-    // Reset the file input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  // Function to remove a file from the list
   const removeFile = index => {
     setAudioFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
   };
 
-  // Placeholder function for Azure batch transcription API
-  const transcribeAudio = async files => {
-    console.log('Transcribing files:', files);
-    await new Promise(resolve => setTimeout(resolve, 2000));
+  const uploadAndTranscribe = async files => {
+    const formData = new FormData();
+    files.forEach(file => formData.append('files', file));
+
+    const response = await fetch('http://localhost:3000/upload-and-transcribe', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.transcriptionUrl;
   };
 
-  // Form submission handler
+  const checkTranscriptionStatus = async url => {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/transcription-status?transcriptionUrl=${encodeURIComponent(url)}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.status;
+    } catch (error) {
+      console.error('Error checking transcription status:', error);
+      throw error;
+    }
+  };
+
+  useEffect(() => {
+    let intervalId;
+
+    if (['NotStarted', 'Running'].includes(transcriptionStatus) && transcriptionUrl) {
+      intervalId = setInterval(async () => {
+        try {
+          const status = await checkTranscriptionStatus(transcriptionUrl);
+          setTranscriptionStatus(status);
+          if (!['NotStarted', 'Running'].includes(status)) {
+            clearInterval(intervalId);
+          }
+        } catch (error) {
+          console.error('Error checking transcription status:', error);
+          clearInterval(intervalId);
+        }
+      }, 10000); // Check every 10 seconds
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [transcriptionStatus, transcriptionUrl]);
+
   const handleSubmit = async event => {
     event.preventDefault();
     if (audioFiles.length === 0) {
@@ -42,14 +89,32 @@ const MultiAudioUploaderForm = () => {
     }
     setIsSubmitting(true);
     try {
-      await transcribeAudio(audioFiles);
-      alert('Transcription process initiated successfully!');
-      setAudioFiles([]); // Clear the file list after successful submission
+      const url = await uploadAndTranscribe(audioFiles);
+      setTranscriptionUrl(url);
+      setTranscriptionStatus('NotStarted');
+      onTranscriptionCreated(url);
     } catch (error) {
       console.error('Transcription error:', error);
-      alert('An error occurred during transcription. Please try again.');
+      alert(`An error occurred during transcription: ${error.message}`);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const getStatusIcon = () => {
+    switch (transcriptionStatus) {
+      case 'NotStarted':
+      case 'Running':
+        return <RefreshCw className='animate-spin ml-2 text-indigo-600' size={18} />;
+      case 'Succeeded':
+        return <CheckCircle className='ml-2 text-green-500' size={18} />;
+      case 'Failed':
+        return <XCircle className='ml-2 text-red-500' size={18} />;
+      case 'Cancelling':
+      case 'Cancelled':
+        return <AlertCircle className='ml-2 text-yellow-500' size={18} />;
+      default:
+        return null;
     }
   };
 
@@ -57,7 +122,6 @@ const MultiAudioUploaderForm = () => {
     <form onSubmit={handleSubmit} className='p-4 sm:p-6 bg-white rounded-lg shadow-md'>
       <h2 className='text-xl sm:text-2xl font-bold text-indigo-700 mb-4'>Audio Transcription Service</h2>
 
-      {/* File upload area */}
       <div className='mb-4'>
         <label
           htmlFor='audio-upload'
@@ -80,7 +144,6 @@ const MultiAudioUploaderForm = () => {
         </label>
       </div>
 
-      {/* List of uploaded files */}
       {audioFiles.length > 0 && (
         <div className='space-y-2 mb-4'>
           {audioFiles.map((file, index) => (
@@ -98,13 +161,29 @@ const MultiAudioUploaderForm = () => {
         </div>
       )}
 
-      {/* Submit button */}
       <button
         type='submit'
         className='w-full py-2 px-4 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-opacity-75 transition'
         disabled={isSubmitting || audioFiles.length === 0}>
-        {isSubmitting ? 'Transcribing...' : 'Transcribe Audio'}
+        {isSubmitting ? (
+          <>
+            <Loader className='animate-spin inline-block mr-2' size={18} />
+            Transcribing...
+          </>
+        ) : (
+          'Transcribe Audio'
+        )}
       </button>
+
+      {transcriptionStatus && (
+        <div className='mt-4 p-2 bg-indigo-50 rounded-md'>
+          <p className='text-sm text-indigo-700 flex items-center'>
+            Transcription Status:
+            <span className='font-semibold ml-2'>{transcriptionStatus}</span>
+            {getStatusIcon()}
+          </p>
+        </div>
+      )}
     </form>
   );
 };
