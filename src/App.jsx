@@ -1,8 +1,8 @@
 import './App.css';
 import Header from './components/layouts/Header';
-import MultiAudioUploader from './components/ui/MultiAudioUploader';
-import TranscriptionDisplay from './components/ui/TranscriptionDisplay';
-import SummaryEditor from './components/ui/SummaryEditor';
+import MultiAudioUploader from './components/MultiAudioUploader';
+import TranscriptionDisplay from './components/TranscriptionDisplay';
+import SummaryEditor from './components/SummaryEditor';
 
 function App() {
   return (
