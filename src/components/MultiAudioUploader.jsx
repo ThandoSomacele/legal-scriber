@@ -114,7 +114,7 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated }) => {
       case 'Cancelled':
         return <AlertCircle className='ml-2 text-yellow-500' size={18} />;
       default:
-        return null;
+        return 'NotStarted';
     }
   };
 
