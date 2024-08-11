@@ -56,12 +56,12 @@ Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed 
         <div
           ref={transcriptionRef}
           className='bg-secondary-50 p-4 rounded-md mb-6 h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-indigo-300 scrollbar-track-secondary-100'>
-          <p className='text-secondary-800 whitespace-pre-wrap'>{transcribedText || placeholderText}</p>
+          <p className='text-secondary-800 whitespace-pre-wrap text-left'>{transcribedText || placeholderText}</p>
         </div>
         {showScrollIndicator && (
           <div className='absolute bottom-0 left-0 right-0 flex justify-center pb-2 pointer-events-none animate-bounce'>
             <div className='bg-primary-600 rounded-full p-2 shadow-lg'>
-              <ChevronDown className='text-white w-6 h-6 ' />
+              <ChevronDown className='text-white w-6 h-6' />
             </div>
           </div>
         )}
