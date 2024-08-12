@@ -1,18 +1,51 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { FileText, Loader, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { FileText, Loader, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
 
 const TranscriptionDisplay = ({ transcriptionUrl }) => {
   const [transcriptionResults, setTranscriptionResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [expandedResults, setExpandedResults] = useState({});
-  const transcriptionRef = useRef(null);
+  const [transcriptionStatus, setTranscriptionStatus] = useState('NotStarted');
 
   useEffect(() => {
     if (transcriptionUrl) {
-      fetchTranscriptionResults();
+      checkTranscriptionStatus();
     }
   }, [transcriptionUrl]);
+
+  const checkTranscriptionStatus = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`/transcription-status?transcriptionUrl=${encodeURIComponent(transcriptionUrl)}`);
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error("Oops! We haven't received a valid response from the server.");
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'An error occurred while checking the transcription status.');
+      }
+
+      setTranscriptionStatus(data.status);
+
+      if (data.status === 'Succeeded') {
+        await fetchTranscriptionResults();
+      } else if (data.status === 'Running' || data.status === 'NotStarted') {
+        // Check again after 10 seconds
+        setTimeout(checkTranscriptionStatus, 10000);
+      }
+    } catch (error) {
+      console.error('Error checking transcription status:', error);
+      setError(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const fetchTranscriptionResults = async () => {
     setIsLoading(true);
@@ -81,9 +114,13 @@ const TranscriptionDisplay = ({ transcriptionUrl }) => {
           <Loader className='animate-spin text-indigo-600' size={48} />
         </div>
       ) : error ? (
-        <div className='text-red-600 text-center'>{error}</div>
+        <div className='text-red-600 text-center flex items-center justify-center'>
+          <AlertCircle className='mr-2' />
+          {error}
+        </div>
       ) : (
         <div className='space-y-4'>
+          <p className='text-indigo-600 font-semibold'>Status: {transcriptionStatus}</p>
           {transcriptionResults.map((result, index) => (
             <div key={index} className='border border-indigo-200 rounded-lg p-4'>
               <div

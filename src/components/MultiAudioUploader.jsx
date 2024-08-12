@@ -108,7 +108,7 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated }) => {
         return <RefreshCw className='animate-spin ml-2 text-indigo-600' size={18} />;
       case 'Succeeded':
         return <CheckCircle className='ml-2 text-green-500' size={18} />;
-      case 'Failed':
+      case 'Failed.':
         return <XCircle className='ml-2 text-red-500' size={18} />;
       case 'Cancelling':
       case 'Cancelled':
@@ -179,7 +179,9 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated }) => {
         <div className='mt-4 p-2 bg-indigo-50 rounded-md'>
           <p className='text-sm text-indigo-700 flex items-center'>
             Transcription Status:
-            <span className='font-semibold ml-2'>{transcriptionStatus}</span>
+            <span className='font-semibold ml-2'>
+              {transcriptionStatus === 'Failed' ? transcriptionStatus + ', Please try again.' : transcriptionStatus}
+            </span>
             {getStatusIcon()}
           </p>
         </div>
