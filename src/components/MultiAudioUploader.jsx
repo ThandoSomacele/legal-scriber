@@ -6,6 +6,7 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [transcriptionStatus, setTranscriptionStatus] = useState(null);
   const [transcriptionUrl, setTranscriptionUrl] = useState(null);
+  const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
 
   const handleFileChange = event => {
@@ -25,17 +26,23 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated }) => {
     const formData = new FormData();
     files.forEach(file => formData.append('files', file));
 
-    const response = await fetch('http://localhost:3000/upload-and-transcribe', {
-      method: 'POST',
-      body: formData,
-    });
+    try {
+      const response = await fetch('http://localhost:3000/upload-and-transcribe', {
+        method: 'POST',
+        body: formData,
+      });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.transcriptionUrl;
+    } catch (error) {
+      console.error('Upload and transcribe error:', error);
+      throw error;
     }
-
-    const data = await response.json();
-    return data.transcriptionUrl;
   };
 
   const checkTranscriptionStatus = async url => {
@@ -45,7 +52,8 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated }) => {
       );
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
@@ -69,6 +77,7 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated }) => {
           }
         } catch (error) {
           console.error('Error checking transcription status:', error);
+          setError(error.message);
           clearInterval(intervalId);
         }
       }, 10000); // Check every 10 seconds
@@ -84,10 +93,11 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated }) => {
   const handleSubmit = async event => {
     event.preventDefault();
     if (audioFiles.length === 0) {
-      alert('Please upload at least one audio file before transcribing.');
+      setError('Please upload at least one audio file before transcribing.');
       return;
     }
     setIsSubmitting(true);
+    setError(null);
     try {
       const url = await uploadAndTranscribe(audioFiles);
       setTranscriptionUrl(url);
@@ -95,7 +105,7 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated }) => {
       onTranscriptionCreated(url);
     } catch (error) {
       console.error('Transcription error:', error);
-      alert(`An error occurred during transcription: ${error.message}`);
+      setError(`An error occurred during transcription: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -108,13 +118,13 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated }) => {
         return <RefreshCw className='animate-spin ml-2 text-indigo-600' size={18} />;
       case 'Succeeded':
         return <CheckCircle className='ml-2 text-green-500' size={18} />;
-      case 'Failed.':
+      case 'Failed':
         return <XCircle className='ml-2 text-red-500' size={18} />;
       case 'Cancelling':
       case 'Cancelled':
         return <AlertCircle className='ml-2 text-yellow-500' size={18} />;
       default:
-        return 'NotStarted';
+        return null;
     }
   };
 
@@ -122,6 +132,7 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated }) => {
     <form onSubmit={handleSubmit} className='p-4 sm:p-6 bg-white rounded-lg shadow-md'>
       <h2 className='text-xl sm:text-2xl font-bold text-indigo-700 mb-4'>Audio Transcription Service</h2>
 
+      {/* File upload area */}
       <div className='mb-4'>
         <label
           htmlFor='audio-upload'
@@ -144,6 +155,7 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated }) => {
         </label>
       </div>
 
+      {/* File list */}
       {audioFiles.length > 0 && (
         <div className='space-y-2 mb-4'>
           {audioFiles.map((file, index) => (
@@ -161,6 +173,7 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated }) => {
         </div>
       )}
 
+      {/* Submit button */}
       <button
         type='submit'
         className='w-full py-2 px-4 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-opacity-75 transition'
@@ -175,6 +188,7 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated }) => {
         )}
       </button>
 
+      {/* Transcription status */}
       {transcriptionStatus && (
         <div className='mt-4 p-2 bg-indigo-50 rounded-md'>
           <p className='text-sm text-indigo-700 flex items-center'>
@@ -183,6 +197,16 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated }) => {
               {transcriptionStatus === 'Failed' ? transcriptionStatus + ', Please try again.' : transcriptionStatus}
             </span>
             {getStatusIcon()}
+          </p>
+        </div>
+      )}
+
+      {/* Error message */}
+      {error && (
+        <div className='mt-4 p-2 bg-red-100 text-red-700 rounded-md'>
+          <p className='text-sm flex items-center'>
+            <AlertCircle className='mr-2' size={18} />
+            {error}
           </p>
         </div>
       )}

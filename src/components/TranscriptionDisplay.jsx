@@ -19,18 +19,10 @@ const TranscriptionDisplay = ({ transcriptionUrl }) => {
     setError(null);
     try {
       const response = await fetch(`/transcription-status?transcriptionUrl=${encodeURIComponent(transcriptionUrl)}`);
-
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error("Oops! We haven't received a valid response from the server.");
-      }
-
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.error || 'An error occurred while checking the transcription status.');
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-
+      const data = await response.json();
       setTranscriptionStatus(data.status);
 
       if (data.status === 'Succeeded') {
@@ -41,7 +33,7 @@ const TranscriptionDisplay = ({ transcriptionUrl }) => {
       }
     } catch (error) {
       console.error('Error checking transcription status:', error);
-      setError(error.message);
+      setError('Failed to check transcription status. Please try again later.');
     } finally {
       setIsLoading(false);
     }
@@ -51,19 +43,21 @@ const TranscriptionDisplay = ({ transcriptionUrl }) => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${transcriptionUrl}/files`, {
+      // Step 1: Get the list of result files
+      const filesResponse = await fetch(`${transcriptionUrl}/files`, {
         headers: {
           'Ocp-Apim-Subscription-Key': import.meta.env.VITE_SPEECH_KEY,
         },
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (!filesResponse.ok) {
+        throw new Error(`HTTP error! status: ${filesResponse.status}`);
       }
+      const filesData = await filesResponse.json();
 
-      const data = await response.json();
-      const transcriptionFiles = data.values.filter(file => file.kind === 'Transcription');
+      // Step 2: Filter for transcription files
+      const transcriptionFiles = filesData.values.filter(file => file.kind === 'Transcription');
 
+      // Step 3: Fetch content for each transcription file
       const results = await Promise.all(
         transcriptionFiles.map(async file => {
           const contentResponse = await fetch(file.links.contentUrl, {
@@ -133,7 +127,7 @@ const TranscriptionDisplay = ({ transcriptionUrl }) => {
                 <div className='mt-2 space-y-2'>
                   <p className='text-sm text-gray-600'>Duration: {formatDuration(result.content.durationInTicks)}</p>
                   <div className='bg-indigo-50 p-3 rounded-md'>
-                    <p className='text-indigo-800 whitespace-pre-wrap text-left'>
+                    <p className='text-indigo-800 whitespace-pre-wrap'>
                       {result.content.combinedRecognizedPhrases[0].display}
                     </p>
                   </div>
