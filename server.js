@@ -1,6 +1,11 @@
 import express from 'express';
 import multer from 'multer';
-import { BlobServiceClient } from '@azure/storage-blob';
+import {
+  BlobServiceClient,
+  StorageSharedKeyCredential,
+  generateBlobSASQueryParameters,
+  BlobSASPermissions,
+} from '@azure/storage-blob';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import axios from 'axios';
@@ -19,17 +24,30 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 // Azure Blob Storage configuration
-const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
-const accountName = process.env.VITE_STORAGE_ACCOUNT_NAME;
+const accountName = process.env.AZURE_STORAGE_ACCOUNT_NAME;
+const accountKey = process.env.AZURE_STORAGE_ACCOUNT_KEY;
 const containerName = process.env.VITE_AUDIOS_CONTAINER_NAME;
+const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
 
-// Create BlobServiceClient using DefaultAzureCredential
-// Create BlobServiceClient using the connection string
+// Create BlobServiceClient
 const blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);
 const containerClient = blobServiceClient.getContainerClient(containerName);
 
-// Configure axios-retry
-axiosRetry(axios, { retries: 3, retryDelay: axiosRetry.exponentialDelay });
+const sharedKeyCredential = new StorageSharedKeyCredential(accountName, accountKey);
+
+const generateSasUrl = blobName => {
+  const blobSAS = generateBlobSASQueryParameters(
+    {
+      containerName,
+      blobName,
+      permissions: BlobSASPermissions.parse('r'),
+      startsOn: new Date(),
+      expiresOn: new Date(new Date().valueOf() + 3600 * 1000),
+    },
+    sharedKeyCredential
+  ).toString();
+  return `https://${accountName}.blob.core.windows.net/${containerName}/${blobName}?${blobSAS}`;
+};
 
 app.post('/upload-and-transcribe', upload.array('files'), async (req, res) => {
   console.log('Starting file upload process...');
@@ -39,11 +57,8 @@ app.post('/upload-and-transcribe', upload.array('files'), async (req, res) => {
     for (const file of req.files) {
       const blobName = `${Date.now()}-${file.originalname}`;
       const blockBlobClient = containerClient.getBlockBlobClient(blobName);
-
       await blockBlobClient.upload(file.buffer, file.buffer.length);
-      console.log(`File uploaded: ${blobName}`);
-
-      const blobUrl = `https://${accountName}.blob.core.windows.net/${containerName}/${blobName}`;
+      const blobUrl = generateSasUrl(blobName);
       uploadedFiles.push(blobUrl);
     }
 
@@ -82,21 +97,20 @@ app.post('/upload-and-transcribe', upload.array('files'), async (req, res) => {
   } catch (error) {
     console.error('Error in /upload-and-transcribe endpoint:', error);
     if (error.response) {
-      // The request was made and the server responded with a status code
-      // that falls out of the range of 2xx
       res.status(error.response.status).json({
         error: error.response.data.error?.message || 'An error occurred during transcription',
         details: error.response.data,
       });
     } else if (error.request) {
-      // The request was made but no response was received
       res.status(500).json({ error: 'No response received from the transcription service. Please try again later.' });
     } else {
-      // Something happened in setting up the request that triggered an Error
       res.status(500).json({ error: 'An error occurred while setting up the transcription request' });
     }
   }
 });
+
+// Configure axios-retry
+axiosRetry(axios, { retries: 3, retryDelay: axiosRetry.exponentialDelay });
 
 app.get('/transcription-status', async (req, res) => {
   const transcriptionUrl = req.query.transcriptionUrl;

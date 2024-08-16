@@ -27,11 +27,19 @@ const TranscriptionDisplay = ({ transcriptionUrl }) => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/transcription-status?transcriptionUrl=${encodeURIComponent(transcriptionUrl)}`);
+      const response = await fetch(
+        `/api/transcription-status?transcriptionUrl=${encodeURIComponent(transcriptionUrl)}`
+      );
+      const text = await response.text();
+      console.log('Raw response:', text);
+
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${text}`);
       }
-      const data = await response.json();
+
+      const data = JSON.parse(text);
+      console.log('Parsed data:', data);
+
       setTranscriptionStatus(data.status);
 
       switch (data.status) {
@@ -53,7 +61,7 @@ const TranscriptionDisplay = ({ transcriptionUrl }) => {
       }
     } catch (error) {
       console.error('Error checking transcription status:', error);
-      setError('Failed to check transcription status. Please try again later.');
+      setError(`Failed to check transcription status: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
