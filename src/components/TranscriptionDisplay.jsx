@@ -1,17 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Loader, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
+import { FileText, Loader, ChevronDown, ChevronUp, AlertCircle, FileBarChart } from 'lucide-react';
 
 const TranscriptionDisplay = ({ transcriptionUrl }) => {
   const [transcriptionResults, setTranscriptionResults] = useState([]);
+  const [transcriptionReport, setTranscriptionReport] = useState(null); // New state for the report
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [expandedResults, setExpandedResults] = useState({});
   const [transcriptionStatus, setTranscriptionStatus] = useState('NotStarted');
 
   useEffect(() => {
+    let statusCheckTimer;
+
     if (transcriptionUrl) {
       checkTranscriptionStatus();
     }
+
+    return () => {
+      if (statusCheckTimer) {
+        clearTimeout(statusCheckTimer);
+      }
+    };
   }, [transcriptionUrl]);
 
   const checkTranscriptionStatus = async () => {
@@ -25,11 +34,22 @@ const TranscriptionDisplay = ({ transcriptionUrl }) => {
       const data = await response.json();
       setTranscriptionStatus(data.status);
 
-      if (data.status === 'Succeeded') {
-        await fetchTranscriptionResults();
-      } else if (data.status === 'Running' || data.status === 'NotStarted') {
-        // Check again after 10 seconds
-        setTimeout(checkTranscriptionStatus, 10000);
+      switch (data.status) {
+        case 'NotStarted':
+        case 'Running':
+          // Continue checking status after a delay
+          setTimeout(checkTranscriptionStatus, 10000); // Check every 10 seconds
+          break;
+        case 'Succeeded':
+          // Fetch results when the transcription is complete
+          await fetchTranscriptionResults();
+          break;
+        case 'Failed':
+        case 'Cancelled':
+          setError(`Transcription ${data.status.toLowerCase()}. Please try again.`);
+          break;
+        default:
+          console.warn(`Unknown transcription status: ${data.status}`);
       }
     } catch (error) {
       console.error('Error checking transcription status:', error);
@@ -54,10 +74,28 @@ const TranscriptionDisplay = ({ transcriptionUrl }) => {
       }
       const filesData = await filesResponse.json();
 
-      // Step 2: Filter for transcription files
-      const transcriptionFiles = filesData.values.filter(file => file.kind === 'Transcription');
+      // Step 2: Handle pagination if necessary
+      let allFiles = filesData.values;
+      let nextLink = filesData.nextLink;
+      while (nextLink) {
+        const nextResponse = await fetch(nextLink, {
+          headers: {
+            'Ocp-Apim-Subscription-Key': import.meta.env.VITE_SPEECH_KEY,
+          },
+        });
+        if (!nextResponse.ok) {
+          throw new Error(`HTTP error! status: ${nextResponse.status}`);
+        }
+        const nextData = await nextResponse.json();
+        allFiles = [...allFiles, ...nextData.values];
+        nextLink = nextData.nextLink;
+      }
 
-      // Step 3: Fetch content for each transcription file
+      // Step 3: Filter for transcription files and the report file
+      const transcriptionFiles = allFiles.filter(file => file.kind === 'Transcription');
+      const reportFile = allFiles.find(file => file.kind === 'TranscriptionReport');
+
+      // Step 4: Fetch content for each transcription file and the report
       const results = await Promise.all(
         transcriptionFiles.map(async file => {
           const contentResponse = await fetch(file.links.contentUrl, {
@@ -72,6 +110,20 @@ const TranscriptionDisplay = ({ transcriptionUrl }) => {
           return { fileName: file.name, content };
         })
       );
+
+      // Fetch report content
+      if (reportFile) {
+        const reportResponse = await fetch(reportFile.links.contentUrl, {
+          headers: {
+            'Ocp-Apim-Subscription-Key': import.meta.env.VITE_SPEECH_KEY,
+          },
+        });
+        if (!reportResponse.ok) {
+          throw new Error(`HTTP error! status: ${reportResponse.status}`);
+        }
+        const reportContent = await reportResponse.json();
+        setTranscriptionReport(reportContent);
+      }
 
       setTranscriptionResults(results);
     } catch (error) {
@@ -96,6 +148,38 @@ const TranscriptionDisplay = ({ transcriptionUrl }) => {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
+  // New function to render the transcription report
+  const renderTranscriptionReport = () => {
+    if (!transcriptionReport) return null;
+
+    return (
+      <div className='mt-4 p-4 bg-indigo-50 rounded-lg'>
+        <h3 className='text-lg font-semibold text-indigo-700 flex items-center mb-2'>
+          <FileBarChart className='mr-2' />
+          Transcription Report
+        </h3>
+        <p className='text-sm text-indigo-600'>
+          Successful Transcriptions: {transcriptionReport.successfulTranscriptionsCount}
+        </p>
+        <p className='text-sm text-indigo-600'>
+          Failed Transcriptions: {transcriptionReport.failedTranscriptionsCount}
+        </p>
+        {transcriptionReport.details && (
+          <div className='mt-2'>
+            <h4 className='text-md font-semibold text-indigo-600'>Details:</h4>
+            <ul className='list-disc list-inside'>
+              {transcriptionReport.details.map((detail, index) => (
+                <li key={index} className='text-sm text-indigo-600'>
+                  {detail.source}: {detail.status}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className='bg-white shadow-md rounded-lg p-6'>
       <h2 className='text-2xl font-semibold text-indigo-700 mb-4 flex items-center'>
@@ -115,6 +199,7 @@ const TranscriptionDisplay = ({ transcriptionUrl }) => {
       ) : (
         <div className='space-y-4'>
           <p className='text-indigo-600 font-semibold'>Status: {transcriptionStatus}</p>
+          {renderTranscriptionReport()}
           {transcriptionResults.map((result, index) => (
             <div key={index} className='border border-indigo-200 rounded-lg p-4'>
               <div
