@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Loader, ChevronDown, ChevronUp, AlertCircle, FileBarChart } from 'lucide-react';
+import { FileText, Loader, ChevronDown, ChevronUp, AlertCircle, FileBarChart, Lightbulb } from 'lucide-react';
+import axios from 'axios';
 
-const TranscriptionDisplay = ({ transcriptionUrl }) => {
+const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
   const [transcriptionResults, setTranscriptionResults] = useState([]);
   const [transcriptionReport, setTranscriptionReport] = useState(null); // New state for the report
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [expandedResults, setExpandedResults] = useState({});
   const [transcriptionStatus, setTranscriptionStatus] = useState('NotStarted');
+  const [isSummarising, setIsSummarising] = useState(false);
 
   useEffect(() => {
     let statusCheckTimer;
@@ -188,12 +190,41 @@ const TranscriptionDisplay = ({ transcriptionUrl }) => {
     );
   };
 
+  const handleSummarise = async () => {
+    setIsSummarising(true);
+    try {
+      const response = await axios.post('/api/summarise', { transcriptionResults });
+      onSummaryGenerated(response.data.summary);
+    } catch (error) {
+      console.error('Error generating summary:', error);
+      setError('Failed to generate summary. Please try again.');
+    } finally {
+      setIsSummarising(false);
+    }
+  };
+
   return (
     <div className='bg-white shadow-md rounded-lg p-6'>
       <h2 className='text-2xl font-semibold text-indigo-700 mb-4 flex items-center'>
         <FileText className='mr-2' />
         Transcription Results
       </h2>
+
+      {transcriptionResults.length > 0 && !isLoading && !error && (
+        <div className='mt-4'>
+          <button
+            onClick={handleSummarise}
+            disabled={isSummarising}
+            className='bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition-colors duration-300 flex items-center justify-center w-full sm:w-auto'>
+            {isSummarising ? (
+              <Loader className='animate-spin mr-2' size={18} />
+            ) : (
+              <Lightbulb className='mr-2' size={18} />
+            )}
+            {isSummarising ? 'Summarising...' : 'Summarise Transcriptions'}
+          </button>
+        </div>
+      )}
 
       {isLoading ? (
         <div className='flex justify-center items-center h-64'>

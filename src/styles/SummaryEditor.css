@@ -1,52 +1,129 @@
 /* SummaryEditor.css */
 
-.markdown-content {
-  text-align: left;
+.markdown-editor,
+.markdown-content,
+.preview-markdown {
+  text-align: left !important;
 }
 
-.markdown-content h1,
-.markdown-content h2,
-.markdown-content h3,
-.markdown-content h4,
-.markdown-content h5,
-.markdown-content h6 {
+.preview-markdown {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.preview-markdown h1,
+.preview-markdown h2,
+.preview-markdown h3,
+.preview-markdown h4,
+.preview-markdown h5,
+.preview-markdown h6 {
   margin-top: 1em;
   margin-bottom: 0.5em;
   font-weight: bold;
 }
 
-.markdown-content h1 {
+.preview-markdown h1 {
   font-size: 1.5em;
 }
 
-.markdown-content h2 {
+.preview-markdown h2 {
   font-size: 1.25em;
 }
 
-.markdown-content p,
-.markdown-content ul,
-.markdown-content ol {
+.preview-markdown p,
+.preview-markdown ul,
+.preview-markdown ol {
   margin-bottom: 1em;
 }
 
-.markdown-content ul,
-.markdown-content ol {
-  padding-left: 1.5em;
+.preview-markdown ul,
+.preview-markdown ol {
+  padding-left: 2em;
+  list-style-position: outside;
 }
 
-.markdown-content li {
+.preview-markdown ul {
+  list-style-type: disc;
+}
+
+.preview-markdown ol {
+  list-style-type: decimal;
+}
+
+.preview-markdown li {
   margin-bottom: 0.5em;
 }
 
-.markdown-content strong {
+.preview-markdown strong {
   font-weight: bold;
 }
 
-.markdown-content em {
+.preview-markdown em {
   font-style: italic;
 }
 
-textarea {
-  font-family: 'Courier New', Courier, monospace;
-  line-height: 1.5;
+.preview-markdown a {
+  color: #4f46e5;
+  text-decoration: underline;
+}
+
+.preview-markdown blockquote {
+  border-left: 4px solid #e0e7ff;
+  padding-left: 1em;
+  margin-left: 0;
+  font-style: italic;
+}
+
+.preview-markdown code {
+  background-color: #f3f4f6;
+  padding: 0.2em 0.4em;
+  border-radius: 0.25em;
+  font-size: 0.875em;
+}
+
+.preview-markdown pre {
+  background-color: #f3f4f6;
+  padding: 1em;
+  border-radius: 0.25em;
+  overflow-x: auto;
+}
+
+/* Styles for react-markdown-editor-lite */
+.rc-md-editor {
+  border-color: #e0e7ff;
+}
+
+.rc-md-navigation {
+  background-color: #eef2ff;
+  border-bottom-color: #e0e7ff;
+}
+
+.rc-md-editor .editor-container {
+  background-color: #ffffff;
+}
+
+.rc-md-editor .custom-html-style {
+  padding: 1rem;
+  background-color: #f3f4f6;
+}
+
+.rc-md-editor .custom-html-style ul,
+.rc-md-editor .custom-html-style ol {
+  padding-left: 2em;
+  list-style-position: outside;
+}
+
+.rc-md-editor .custom-html-style ul {
+  list-style-type: disc;
+}
+
+.rc-md-editor .custom-html-style ol {
+  list-style-type: decimal;
+}
+
+/* Ensure left alignment in both edit and preview modes */
+.rc-md-editor .editor-container .sec-md,
+.rc-md-editor .editor-container .sec-html,
+.rc-md-editor .custom-html-style {
+  text-align: left !important;
 }

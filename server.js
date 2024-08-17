@@ -10,6 +10,7 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import axios from 'axios';
 import axiosRetry from 'axios-retry';
+import { AzureOpenAI } from 'openai';
 
 dotenv.config();
 
@@ -146,6 +147,37 @@ app.get('/transcription-status', async (req, res) => {
     } else {
       res.status(500).json({ error: 'An error occurred while checking transcription status' });
     }
+  }
+});
+
+const openAiClient = new AzureOpenAI({
+  endpoint: process.env.AZURE_OPENAI_ENDPOINT,
+  apiKey: process.env.AZURE_OPENAI_API_KEY,
+  apiVersion: '2024-04-01-preview',
+});
+
+app.post('/api/summarise', async (req, res) => {
+  try {
+    const { transcriptionResults } = req.body;
+
+    // Combine all transcriptions into a single text
+    const combinedTranscriptions = transcriptionResults
+      .map(result => result.content.combinedRecognizedPhrases[0].display)
+      .join('\n\n');
+
+    const response = await openAiClient.completions.create({
+      model: 'gpt-35-turbo-instruct', // Use the appropriate model for your deployment
+      prompt: `Summarise the following transcriptions:\n\n${combinedTranscriptions}\n\nSummary:`,
+      max_tokens: 500,
+      temperature: 0.7,
+    });
+
+    const summary = response.choices[0].text.trim();
+
+    res.json({ summary });
+  } catch (error) {
+    console.error('Error generating summary:', error);
+    res.status(500).json({ error: 'An error occurred while generating the summary' });
   }
 });
 
