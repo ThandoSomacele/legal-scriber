@@ -4,12 +4,13 @@ import axios from 'axios';
 
 const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
   const [transcriptionResults, setTranscriptionResults] = useState([]);
-  const [transcriptionReport, setTranscriptionReport] = useState(null); // New state for the report
+  const [transcriptionReport, setTranscriptionReport] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [expandedResults, setExpandedResults] = useState({});
   const [transcriptionStatus, setTranscriptionStatus] = useState('NotStarted');
   const [isSummarising, setIsSummarising] = useState(false);
+  const [summarisationError, setSummarisationError] = useState(null);
 
   useEffect(() => {
     let statusCheckTimer;
@@ -192,12 +193,32 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
 
   const handleSummarise = async () => {
     setIsSummarising(true);
+    setSummarisationError(null);
     try {
-      const response = await axios.post('/api/summarise', { transcriptionResults });
+      console.log('Sending data to summarise:', { transcriptionResults });
+      const response = await axios.post('http://localhost:3000/api/summarise', { transcriptionResults });
+      console.log('Received summary:', response.data);
       onSummaryGenerated(response.data.summary);
     } catch (error) {
       console.error('Error generating summary:', error);
-      setError('Failed to generate summary. Please try again.');
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        console.error('Error response data:', error.response.data);
+        console.error('Error response status:', error.response.status);
+        console.error('Error response headers:', error.response.headers);
+        setSummarisationError(
+          `Server error: ${error.response.status}. ${error.response.data.message || 'Please try again.'}`
+        );
+      } else if (error.request) {
+        // The request was made but no response was received
+        console.error('Error request:', error.request);
+        setSummarisationError('No response received from the server. Please try again.');
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        console.error('Error message:', error.message);
+        setSummarisationError('An error occurred while sending the request. Please try again.');
+      }
     } finally {
       setIsSummarising(false);
     }
@@ -223,6 +244,12 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
             )}
             {isSummarising ? 'Summarising...' : 'Summarise Transcriptions'}
           </button>
+          {summarisationError && (
+            <p className='text-red-600 mt-2 flex items-center'>
+              <AlertCircle className='mr-2' size={18} />
+              {summarisationError}
+            </p>
+          )}
         </div>
       )}
 

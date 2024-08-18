@@ -157,6 +157,7 @@ const openAiClient = new AzureOpenAI({
 });
 
 app.post('/api/summarise', async (req, res) => {
+  console.log('Received summarise request');
   try {
     const { transcriptionResults } = req.body;
 
@@ -177,7 +178,11 @@ app.post('/api/summarise', async (req, res) => {
     res.json({ summary });
   } catch (error) {
     console.error('Error generating summary:', error);
-    res.status(500).json({ error: 'An error occurred while generating the summary' });
+    if (error.status === 404 && error.code === 'DeploymentNotFound') {
+      res.status(500).json({ error: 'Azure OpenAI deployment not found. Please check your configuration.' });
+    } else {
+      res.status(500).json({ error: 'An error occurred while generating the summary', details: error.message });
+    }
   }
 });
 
