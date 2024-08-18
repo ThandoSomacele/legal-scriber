@@ -11,6 +11,7 @@ import cors from 'cors';
 import axios from 'axios';
 import axiosRetry from 'axios-retry';
 import { AzureOpenAI } from 'openai';
+import { setTimeout } from 'timers/promises';
 
 dotenv.config();
 
@@ -50,6 +51,73 @@ const generateSasUrl = blobName => {
   return `https://${accountName}.blob.core.windows.net/${containerName}/${blobName}?${blobSAS}`;
 };
 
+// Configure axios-retry
+axiosRetry(axios, { retries: 3, retryDelay: axiosRetry.exponentialDelay });
+
+// Initialize Azure OpenAI client
+const openAiClient = new AzureOpenAI({
+  endpoint: process.env.AZURE_OPENAI_ENDPOINT,
+  apiKey: process.env.AZURE_OPENAI_API_KEY,
+  apiVersion: '2024-04-01-preview',
+});
+
+async function summariseWithRetry(transcriptionResults, maxRetries = 5) {
+  const tokenLimit = 1000; // Tokens per minute limit
+  let tokensUsed = 0;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const combinedTranscriptions = transcriptionResults
+        .map(result => result.content.combinedRecognizedPhrases[0].display)
+        .join('\n\n');
+      // Estimate tokens in the input (this is a rough estimate)
+      const inputTokens = Math.ceil(combinedTranscriptions.length / 4); // Use ceil to round up
+
+      if (tokensUsed + inputTokens > tokenLimit) {
+        const waitTime = 60 - ((Date.now() / 1000) % 60); // Wait until next minute
+        await setTimeout(waitTime * 1000);
+        tokensUsed = 0;
+      }
+
+      // Ensure max_tokens is always a positive integer
+      const maxTokens = Math.max(1, Math.floor(tokenLimit - inputTokens));
+
+      const response = await openAiClient.chat.completions.create({
+        deployment: 'gpt-4',
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are an AI assistant specialised in summarising legal transcriptions. Your task is to provide accurate, concise, yet comprehensive summaries that capture key legal points, arguments, and decisions. Use appropriate legal terminology and maintain the original context and nuances. Focus on the most pertinent information and organise it logically.',
+          },
+          {
+            role: 'user',
+            content: `Please summarise the following legal transcription. Ensure all critical legal points, arguments, and decisions are accurately captured. Organise the summary in a clear, structured format:\n\n${combinedTranscriptions}`,
+          },
+        ],
+        max_tokens: maxTokens,
+        temperature: 0.1,
+        top_p: 0.95,
+        frequency_penalty: 0.2,
+        presence_penalty: 0.1,
+      });
+
+      tokensUsed += inputTokens + response.usage.total_tokens;
+      return response.choices[0].message.content.trim();
+    } catch (error) {
+      console.error('Error in summariseWithRetry:', error);
+      if (error.status === 429 && attempt < maxRetries - 1) {
+        const retryAfter = Math.min(parseInt(error.headers['retry-after'] || '60', 10), 300);
+        console.log(`Rate limited. Retrying after ${retryAfter} seconds...`);
+        await setTimeout(retryAfter * 1000);
+      } else {
+        throw error;
+      }
+    }
+  }
+  throw new Error('Max retries reached');
+}
+
 app.post('/upload-and-transcribe', upload.array('files'), async (req, res) => {
   console.log('Starting file upload process...');
   try {
@@ -65,7 +133,6 @@ app.post('/upload-and-transcribe', upload.array('files'), async (req, res) => {
 
     console.log('All files uploaded successfully');
 
-    // Prepare the transcription request
     const transcriptionApiUrl = `https://${process.env.VITE_SERVICE_REGION}.api.cognitive.microsoft.com/speechtotext/v3.2/transcriptions`;
 
     const requestBody = {
@@ -81,8 +148,6 @@ app.post('/upload-and-transcribe', upload.array('files'), async (req, res) => {
     };
 
     console.log('Sending transcription request to Azure...');
-    console.log('Transcription API URL:', transcriptionApiUrl);
-    console.log('Request body:', JSON.stringify(requestBody, null, 2));
 
     const transcriptionResponse = await axios.post(transcriptionApiUrl, requestBody, {
       headers: {
@@ -92,26 +157,12 @@ app.post('/upload-and-transcribe', upload.array('files'), async (req, res) => {
     });
 
     console.log('Transcription request successful');
-    console.log('Transcription response:', JSON.stringify(transcriptionResponse.data, null, 2));
-
     res.json({ transcriptionUrl: transcriptionResponse.data.self });
   } catch (error) {
     console.error('Error in /upload-and-transcribe endpoint:', error);
-    if (error.response) {
-      res.status(error.response.status).json({
-        error: error.response.data.error?.message || 'An error occurred during transcription',
-        details: error.response.data,
-      });
-    } else if (error.request) {
-      res.status(500).json({ error: 'No response received from the transcription service. Please try again later.' });
-    } else {
-      res.status(500).json({ error: 'An error occurred while setting up the transcription request' });
-    }
+    res.status(500).json({ error: 'An error occurred during transcription', details: error.message });
   }
 });
-
-// Configure axios-retry
-axiosRetry(axios, { retries: 3, retryDelay: axiosRetry.exponentialDelay });
 
 app.get('/transcription-status', async (req, res) => {
   const transcriptionUrl = req.query.transcriptionUrl;
@@ -121,7 +172,6 @@ app.get('/transcription-status', async (req, res) => {
   }
 
   console.log('Checking transcription status...');
-  console.log('Transcription URL:', transcriptionUrl);
 
   try {
     const statusResponse = await axios.get(transcriptionUrl, {
@@ -135,51 +185,30 @@ app.get('/transcription-status', async (req, res) => {
     res.json({ status: statusResponse.data.status });
   } catch (error) {
     console.error('Error in /transcription-status endpoint:', error);
-    if (error.response) {
-      res.status(error.response.status).json({
-        error: error.response.data.error?.message || 'An error occurred while checking transcription status',
-        details: error.response.data,
-      });
-    } else if (error.request) {
-      res
-        .status(500)
-        .json({ error: 'Network error: Unable to connect to the transcription service. Please try again later.' });
-    } else {
-      res.status(500).json({ error: 'An error occurred while checking transcription status' });
-    }
+    res.status(500).json({ error: 'An error occurred while checking transcription status', details: error.message });
   }
-});
-
-const openAiClient = new AzureOpenAI({
-  endpoint: process.env.AZURE_OPENAI_ENDPOINT,
-  apiKey: process.env.AZURE_OPENAI_API_KEY,
-  apiVersion: '2024-04-01-preview',
 });
 
 app.post('/api/summarise', async (req, res) => {
   console.log('Received summarise request');
   try {
     const { transcriptionResults } = req.body;
-
-    // Combine all transcriptions into a single text
-    const combinedTranscriptions = transcriptionResults
-      .map(result => result.content.combinedRecognizedPhrases[0].display)
-      .join('\n\n');
-
-    const response = await openAiClient.completions.create({
-      model: 'gpt-35-turbo-instruct', // Use the appropriate model for your deployment
-      prompt: `Summarise the following transcriptions:\n\n${combinedTranscriptions}\n\nSummary:`,
-      max_tokens: 500,
-      temperature: 0.7,
-    });
-
-    const summary = response.choices[0].text.trim();
-
+    const summary = await summariseWithRetry(transcriptionResults);
     res.json({ summary });
   } catch (error) {
     console.error('Error generating summary:', error);
-    if (error.status === 404 && error.code === 'DeploymentNotFound') {
-      res.status(500).json({ error: 'Azure OpenAI deployment not found. Please check your configuration.' });
+    if (error.status === 429) {
+      const retryAfter = parseInt(error.headers['retry-after'] || '3600', 10);
+      res.status(503).json({
+        error: 'Service temporarily unavailable due to high demand. Please try again later.',
+        retryAfter: retryAfter,
+      });
+    } else if (error.status === 404 && error.code === 'DeploymentNotFound') {
+      res
+        .status(500)
+        .json({ error: 'GPT-4 Turbo deployment not found. Please check your Azure OpenAI configuration.' });
+    } else if (error.status === 401) {
+      res.status(500).json({ error: 'Authentication failed. Please check your Azure OpenAI API key.' });
     } else {
       res.status(500).json({ error: 'An error occurred while generating the summary', details: error.message });
     }
