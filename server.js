@@ -12,6 +12,7 @@ import axios from 'axios';
 import axiosRetry from 'axios-retry';
 import { EventEmitter } from 'events';
 import { AzureOpenAI } from 'openai';
+import modelContent from './modelContent';
 
 EventEmitter.defaultMaxListeners = 15;
 
@@ -78,8 +79,7 @@ async function summariseWithRetry(transcriptionResults, maxRetries = 5) {
         messages: [
           {
             role: 'system',
-            content:
-              'You are an AI assistant specialised in summarising legal transcriptions. Provide accurate, concise, yet comprehensive summaries that capture key legal points, arguments, and decisions. Use appropriate legal terminology and maintain the original context and nuances.',
+            content: modelContent,
           },
           { role: 'user', content: `Please summarise the following legal transcription:\n\n${combinedTranscriptions}` },
         ],

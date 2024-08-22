@@ -1,52 +1,66 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import MarkdownEditor from 'react-markdown-editor-lite';
 import 'react-markdown-editor-lite/lib/index.css';
-import { Save, Copy, Check } from 'lucide-react';
+import { Save, Copy, Check, ChevronDown } from 'lucide-react';
 import './../styles/SummaryEditor.css';
 import MarkdownCheatsheet from './MarkdownCheatsheet';
 
 const SummaryEditor = ({ initialSummary, onSave }) => {
-  const placeholderSummary = `# Executive Summary: Legal Case Analysis
+  const placeholderSummary = `# Awaiting Legal Transcription Summary
 
-This document provides a comprehensive overview of the key points discussed in the legal proceedings.
+Your comprehensive legal summary will be displayed here once the transcription and analysis are complete.
 
-## 1. Case Background
+## What to Expect:
 
-- Plaintiff: John Doe
-- Defendant: XYZ Corporation
-- Case Type: Employment Discrimination
+- **Key Legal Points**: A concise overview of the main legal issues discussed.
+- **Arguments**: Summary of arguments presented by all parties involved.
+- **Decisions**: Any rulings or decisions made during the proceedings.
+- **Legal Terminology**: Explanations of relevant legal terms used.
+- **Context**: Maintenance of the original context and nuances of the case.
 
-## 2. Key Arguments
-
-The plaintiff alleges wrongful termination based on the following grounds:
-
-1. **Age Discrimination:** Claims that younger employees were given preferential treatment.
-2. **Retaliation:** Argues that termination was a result of filing a complaint with HR.
-
-## 3. Evidence Presented
-
-- Email correspondence between plaintiff and supervisors
-- Performance reviews from the last 3 years
-- Witness testimonies from co-workers
-
-## 4. Legal Precedents
-
-The case draws parallels to *Smith v. Johnson Corp (2019)*, where the court ruled in favour of the plaintiff under similar circumstances.
-
-## 5. Potential Outcomes
-
-Based on the evidence and legal precedents, potential outcomes include:
-
-- Settlement out of court
-- Reinstatement of the plaintiff with back pay
-- Monetary compensation for damages
-
-**Note:** This summary is subject to update as the case progresses.`;
+*Please note: This AI-generated summary is intended for informational purposes only and should not be considered as legal advice.*`;
 
   const [summary, setSummary] = useState(initialSummary || placeholderSummary);
   const [isEditing, setIsEditing] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [canScroll, setCanScroll] = useState(false);
+  const [hasScrolled, setHasScrolled] = useState(false);
+  const summaryRef = useRef(null);
+
+  useEffect(() => {
+    if (initialSummary) {
+      setSummary(initialSummary);
+    }
+  }, [initialSummary]);
+
+  useEffect(() => {
+    const checkScroll = () => {
+      if (summaryRef.current) {
+        const { scrollHeight, clientHeight, scrollTop } = summaryRef.current;
+        setCanScroll(scrollHeight > clientHeight);
+        setHasScrolled(scrollTop > 0);
+      }
+    };
+
+    const handleScroll = () => {
+      checkScroll();
+    };
+
+    checkScroll();
+    window.addEventListener('resize', checkScroll);
+
+    if (summaryRef.current) {
+      summaryRef.current.addEventListener('scroll', handleScroll);
+    }
+
+    return () => {
+      window.removeEventListener('resize', checkScroll);
+      if (summaryRef.current) {
+        summaryRef.current.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, [summary]);
 
   const handleEditorChange = ({ text }) => {
     setSummary(text);
@@ -96,18 +110,28 @@ _Disclaimer: This summary is generated based on AI analysis and may not capture 
         </div>
       </div>
 
-      <div className='mb-4'>
+      <div className='mb-4 relative'>
         {isEditing ? (
           <MarkdownEditor
             value={summary}
             onChange={handleEditorChange}
-            className='h-[calc(100vh-300px)] markdown-editor'
+            className='h-[calc(100vh-200px)] markdown-editor'
             renderHTML={text => <ReactMarkdown className='preview-markdown'>{text}</ReactMarkdown>}
             view={{ menu: true, md: true, html: true }}
           />
         ) : (
-          <div className='bg-indigo-50 p-4 rounded-md markdown-content overflow-y-auto h-[calc(100vh-300px)]'>
+          <div
+            ref={summaryRef}
+            className='bg-indigo-50 p-4 rounded-md markdown-content overflow-y-auto h-[calc(100vh-200px)] relative'>
             <ReactMarkdown className='preview-markdown'>{summary}</ReactMarkdown>
+            {canScroll && !hasScrolled && (
+              <div className='absolute bottom-0 left-0 right-0 flex justify-center items-center pointer-events-none'>
+                <div className='bg-indigo-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center space-x-2 animate-bounce'>
+                  <ChevronDown size={20} />
+                  <span className='text-sm font-medium'>Scroll for more</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

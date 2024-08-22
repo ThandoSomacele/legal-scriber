@@ -200,6 +200,8 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
       console.log('Sending data to summarise:', { transcriptionResults });
       const response = await axios.post('http://localhost:3000/api/summarise', { transcriptionResults });
       console.log('Received summary:', response.data);
+
+      // Call the onSummaryGenerated prop function with the generated summary
       onSummaryGenerated(response.data.summary);
     } catch (error) {
       console.error('Error generating summary:', error);

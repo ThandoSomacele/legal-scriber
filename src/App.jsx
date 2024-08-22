@@ -12,6 +12,7 @@ function App() {
     setTranscriptionUrl(url);
   };
 
+  // Update this function to set the summary state
   const handleSummaryGenerated = generatedSummary => {
     setSummary(generatedSummary);
   };
