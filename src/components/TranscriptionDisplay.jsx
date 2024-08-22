@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FileText, Loader, ChevronDown, ChevronUp, AlertCircle, FileBarChart, Lightbulb } from 'lucide-react';
 import axios from 'axios';
+import { getPlaceholderTranscription } from '../lib/placeHolderTranscription';
 
 const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
   const [transcriptionResults, setTranscriptionResults] = useState([]);
@@ -12,20 +13,65 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
   const [isSummarising, setIsSummarising] = useState(false);
   const [summarisationError, setSummarisationError] = useState(null);
   const [retryAfter, setRetryAfter] = useState(null);
+  const [scrollableResults, setScrollableResults] = useState({});
+  const [hasScrolled, setHasScrolled] = useState({});
+  const resultRefs = useRef({});
 
   useEffect(() => {
-    let statusCheckTimer;
-
     if (transcriptionUrl) {
       checkTranscriptionStatus();
+    } else {
+      // Use placeholder data when there's no transcriptionUrl
+      const placeholderData = getPlaceholderTranscription();
+      setTranscriptionResults(placeholderData);
+      setTranscriptionStatus('Completed');
     }
+  }, [transcriptionUrl]);
+
+  useEffect(() => {
+    const checkScrollable = () => {
+      const newScrollableResults = {};
+      Object.keys(expandedResults).forEach(index => {
+        if (expandedResults[index] && resultRefs.current[index]) {
+          const { scrollHeight, clientHeight } = resultRefs.current[index];
+          newScrollableResults[index] = scrollHeight > clientHeight;
+        }
+      });
+      setScrollableResults(newScrollableResults);
+    };
+
+    const handleScroll = index => {
+      setHasScrolled(prev => ({ ...prev, [index]: true }));
+    };
+
+    Object.keys(expandedResults).forEach(index => {
+      if (expandedResults[index] && resultRefs.current[index]) {
+        resultRefs.current[index].addEventListener('scroll', () => handleScroll(index));
+      }
+    });
+
+    checkScrollable();
+    window.addEventListener('resize', checkScrollable);
 
     return () => {
-      if (statusCheckTimer) {
-        clearTimeout(statusCheckTimer);
-      }
+      window.removeEventListener('resize', checkScrollable);
+      Object.keys(expandedResults).forEach(index => {
+        if (resultRefs.current[index]) {
+          resultRefs.current[index].removeEventListener('scroll', () => handleScroll(index));
+        }
+      });
     };
-  }, [transcriptionUrl]);
+  }, [expandedResults, transcriptionResults]);
+
+  const toggleResultExpansion = index => {
+    setExpandedResults(prev => ({
+      ...prev,
+      [index]: !prev[index],
+    }));
+
+    // Reset hasScrolled state when toggling expansion
+    setHasScrolled(prev => ({ ...prev, [index]: false }));
+  };
 
   const checkTranscriptionStatus = async () => {
     setIsLoading(true);
@@ -146,13 +192,6 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
     }
   };
 
-  const toggleResultExpansion = index => {
-    setExpandedResults(prev => ({
-      ...prev,
-      [index]: !prev[index],
-    }));
-  };
-
   const formatDuration = durationInTicks => {
     const seconds = durationInTicks / 10000000;
     const minutes = Math.floor(seconds / 60);
@@ -160,7 +199,6 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  // New function to render the transcription report
   const renderTranscriptionReport = () => {
     if (!transcriptionReport) return null;
 
@@ -200,8 +238,6 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
       console.log('Sending data to summarise:', { transcriptionResults });
       const response = await axios.post('http://localhost:3000/api/summarise', { transcriptionResults });
       console.log('Received summary:', response.data);
-
-      // Call the onSummaryGenerated prop function with the generated summary
       onSummaryGenerated(response.data.summary);
     } catch (error) {
       console.error('Error generating summary:', error);
@@ -239,8 +275,53 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
     <div className='bg-white shadow-md rounded-lg p-6'>
       <h2 className='text-2xl font-semibold text-indigo-700 mb-4 flex items-center'>
         <FileText className='mr-2' />
-        Transcription Results
+        {transcriptionUrl ? 'Transcription Results' : 'Placeholder Transcription'}
       </h2>
+
+      {isLoading ? (
+        <div className='flex justify-center items-center h-64'>
+          <Loader className='animate-spin text-indigo-600' size={48} />
+        </div>
+      ) : error ? (
+        <div className='text-red-600 text-center flex items-center justify-center'>
+          <AlertCircle className='mr-2' />
+          {error}
+        </div>
+      ) : (
+        <div className='space-y-4'>
+          <p className='text-indigo-600 font-semibold'>Status: {transcriptionStatus}</p>
+          {renderTranscriptionReport()}
+          {transcriptionResults.map((result, index) => (
+            <div key={index} className='border border-indigo-200 rounded-lg p-4'>
+              <div
+                className='flex justify-between items-center cursor-pointer'
+                onClick={() => toggleResultExpansion(index)}>
+                <h3 className='text-lg font-semibold text-indigo-600'>{result.fileName}</h3>
+                {expandedResults[index] ? <ChevronUp /> : <ChevronDown />}
+              </div>
+              {expandedResults[index] && (
+                <div className='mt-2 space-y-2'>
+                  <p className='text-sm text-gray-600'>Duration: {formatDuration(result.content.durationInTicks)}</p>
+                  <div className='relative'>
+                    <div
+                      ref={el => (resultRefs.current[index] = el)}
+                      className='bg-indigo-50 p-3 rounded-md max-h-[500px] overflow-y-auto'>
+                      <p className='text-indigo-800 whitespace-pre-wrap'>
+                        {result.content.combinedRecognizedPhrases[0].display}
+                      </p>
+                    </div>
+                    {scrollableResults[index] && !hasScrolled[index] && (
+                      <div className='absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-indigo-50 to-transparent pointer-events-none flex justify-center items-end'>
+                        <ChevronDown className='text-indigo-600 animate-bounce mb-2' size={24} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {transcriptionResults.length > 0 && !isLoading && !error && (
         <div className='mt-4'>
@@ -266,41 +347,6 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
           {retryAfter && (
             <p className='text-indigo-600 mt-2'>You can try again in approximately {formatRetryTime(retryAfter)}.</p>
           )}
-        </div>
-      )}
-      {isLoading ? (
-        <div className='flex justify-center items-center h-64'>
-          <Loader className='animate-spin text-indigo-600' size={48} />
-        </div>
-      ) : error ? (
-        <div className='text-red-600 text-center flex items-center justify-center'>
-          <AlertCircle className='mr-2' />
-          {error}
-        </div>
-      ) : (
-        <div className='space-y-4'>
-          <p className='text-indigo-600 font-semibold'>Status: {transcriptionStatus}</p>
-          {renderTranscriptionReport()}
-          {transcriptionResults.map((result, index) => (
-            <div key={index} className='border border-indigo-200 rounded-lg p-4'>
-              <div
-                className='flex justify-between items-center cursor-pointer'
-                onClick={() => toggleResultExpansion(index)}>
-                <h3 className='text-lg font-semibold text-indigo-600'>{result.fileName}</h3>
-                {expandedResults[index] ? <ChevronUp /> : <ChevronDown />}
-              </div>
-              {expandedResults[index] && (
-                <div className='mt-2 space-y-2'>
-                  <p className='text-sm text-gray-600'>Duration: {formatDuration(result.content.durationInTicks)}</p>
-                  <div className='bg-indigo-50 p-3 rounded-md'>
-                    <p className='text-indigo-800 whitespace-pre-wrap'>
-                      {result.content.combinedRecognizedPhrases[0].display}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
         </div>
       )}
 

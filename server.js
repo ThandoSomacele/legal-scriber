@@ -12,7 +12,7 @@ import axios from 'axios';
 import axiosRetry from 'axios-retry';
 import { EventEmitter } from 'events';
 import { AzureOpenAI } from 'openai';
-import modelContent from './modelContent';
+import modelContent from './src/lib/modelContent.js';
 
 EventEmitter.defaultMaxListeners = 15;
 
