@@ -5,6 +5,9 @@ import Home from './components/layouts/Home';
 import MultiAudioUploader from './components/MultiAudioUploader';
 import TranscriptionDisplay from './components/TranscriptionDisplay';
 import SummaryEditor from './components/SummaryEditor';
+import FooterSection from './components/layouts/FooterSection';
+// import PrivacyPolicy from './components/layouts/PrivacyPolicy';
+import TermsAndConditions from './components/TermsAndConditions';
 
 function App() {
   const [transcriptionUrl, setTranscriptionUrl] = useState(null);
@@ -43,8 +46,11 @@ function App() {
                 </div>
               }
             />
+            {/* <Route path='/privacy-policy' element={<PrivacyPolicy />} /> */}
+            <Route path='/terms-and-conditions' element={<TermsAndConditions />} />
           </Routes>
         </main>
+        <FooterSection />
       </div>
     </Router>
   );

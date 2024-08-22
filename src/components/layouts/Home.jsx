@@ -1,6 +1,8 @@
 import React from 'react';
 import FeaturesSection from '../FeaturesSection';
 import PricingSection from '../PricingSection';
+import AboutUsSection from '../AboutUsSection';
+import ContactUsSection from '../ContactUsSection';
 
 const Home = () => {
   return (
@@ -49,6 +51,8 @@ const Home = () => {
 
         <FeaturesSection />
         <PricingSection />
+        <AboutUsSection />
+        <ContactUsSection />
       </main>
     </div>
   );
