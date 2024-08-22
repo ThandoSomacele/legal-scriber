@@ -11,6 +11,7 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
   const [transcriptionStatus, setTranscriptionStatus] = useState('NotStarted');
   const [isSummarising, setIsSummarising] = useState(false);
   const [summarisationError, setSummarisationError] = useState(null);
+  const [retryAfter, setRetryAfter] = useState(null);
 
   useEffect(() => {
     let statusCheckTimer;
@@ -194,6 +195,7 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
   const handleSummarise = async () => {
     setIsSummarising(true);
     setSummarisationError(null);
+    setRetryAfter(null);
     try {
       console.log('Sending data to summarise:', { transcriptionResults });
       const response = await axios.post('http://localhost:3000/api/summarise', { transcriptionResults });
@@ -202,26 +204,33 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
     } catch (error) {
       console.error('Error generating summary:', error);
       if (error.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
         console.error('Error response data:', error.response.data);
         console.error('Error response status:', error.response.status);
         console.error('Error response headers:', error.response.headers);
-        setSummarisationError(
-          `Server error: ${error.response.status}. ${error.response.data.message || 'Please try again.'}`
-        );
+        if (error.response.status === 429) {
+          setSummarisationError('Rate limit exceeded for GPT-4 Turbo. Please try again later.');
+          setRetryAfter(error.response.data.retryAfter);
+        } else {
+          setSummarisationError(
+            `Server error: ${error.response.status}. ${error.response.data.error || 'Please try again.'}`
+          );
+        }
       } else if (error.request) {
-        // The request was made but no response was received
         console.error('Error request:', error.request);
         setSummarisationError('No response received from the server. Please try again.');
       } else {
-        // Something happened in setting up the request that triggered an Error
         console.error('Error message:', error.message);
         setSummarisationError('An error occurred while sending the request. Please try again.');
       }
     } finally {
       setIsSummarising(false);
     }
+  };
+
+  const formatRetryTime = seconds => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    return `${hours} hours and ${minutes} minutes`;
   };
 
   return (
@@ -235,8 +244,10 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
         <div className='mt-4'>
           <button
             onClick={handleSummarise}
-            disabled={isSummarising}
-            className='bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition-colors duration-300 flex items-center justify-center w-full sm:w-auto'>
+            disabled={isSummarising || retryAfter}
+            className={`bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition-colors duration-300 flex items-center justify-center w-full sm:w-auto ${
+              (isSummarising || retryAfter) && 'opacity-50 cursor-not-allowed'
+            }`}>
             {isSummarising ? (
               <Loader className='animate-spin mr-2' size={18} />
             ) : (
@@ -250,9 +261,11 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
               {summarisationError}
             </p>
           )}
+          {retryAfter && (
+            <p className='text-indigo-600 mt-2'>You can try again in approximately {formatRetryTime(retryAfter)}.</p>
+          )}
         </div>
       )}
-
       {isLoading ? (
         <div className='flex justify-center items-center h-64'>
           <Loader className='animate-spin text-indigo-600' size={48} />

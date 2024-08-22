@@ -10,8 +10,10 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import axios from 'axios';
 import axiosRetry from 'axios-retry';
+import { EventEmitter } from 'events';
 import { AzureOpenAI } from 'openai';
-import { setTimeout } from 'timers/promises';
+
+EventEmitter.defaultMaxListeners = 15;
 
 dotenv.config();
 
@@ -55,68 +57,76 @@ const generateSasUrl = blobName => {
 axiosRetry(axios, { retries: 3, retryDelay: axiosRetry.exponentialDelay });
 
 // Initialize Azure OpenAI client
-const openAiClient = new AzureOpenAI({
-  endpoint: process.env.AZURE_OPENAI_ENDPOINT,
+const client = new AzureOpenAI({
   apiKey: process.env.AZURE_OPENAI_API_KEY,
+  endpoint: process.env.AZURE_OPENAI_ENDPOINT,
   apiVersion: '2024-04-01-preview',
 });
 
 async function summariseWithRetry(transcriptionResults, maxRetries = 5) {
-  const tokenLimit = 1000; // Tokens per minute limit
-  let tokensUsed = 0;
-
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
+      console.log(`Attempt ${attempt + 1} of ${maxRetries} to summarize with model: gpt-4o`);
+      console.log('Using endpoint:', process.env.AZURE_OPENAI_ENDPOINT);
+
       const combinedTranscriptions = transcriptionResults
         .map(result => result.content.combinedRecognizedPhrases[0].display)
         .join('\n\n');
-      // Estimate tokens in the input (this is a rough estimate)
-      const inputTokens = Math.ceil(combinedTranscriptions.length / 4); // Use ceil to round up
 
-      if (tokensUsed + inputTokens > tokenLimit) {
-        const waitTime = 60 - ((Date.now() / 1000) % 60); // Wait until next minute
-        await setTimeout(waitTime * 1000);
-        tokensUsed = 0;
-      }
-
-      // Ensure max_tokens is always a positive integer
-      const maxTokens = Math.max(1, Math.floor(tokenLimit - inputTokens));
-
-      const response = await openAiClient.chat.completions.create({
-        deployment: 'gpt-4',
+      const result = await client.chat.completions.create({
+        model: 'gpt-4o', // This should match your deployment name
         messages: [
           {
             role: 'system',
             content:
-              'You are an AI assistant specialised in summarising legal transcriptions. Your task is to provide accurate, concise, yet comprehensive summaries that capture key legal points, arguments, and decisions. Use appropriate legal terminology and maintain the original context and nuances. Focus on the most pertinent information and organise it logically.',
+              'You are an AI assistant specialised in summarising legal transcriptions. Provide accurate, concise, yet comprehensive summaries that capture key legal points, arguments, and decisions. Use appropriate legal terminology and maintain the original context and nuances.',
           },
-          {
-            role: 'user',
-            content: `Please summarise the following legal transcription. Ensure all critical legal points, arguments, and decisions are accurately captured. Organise the summary in a clear, structured format:\n\n${combinedTranscriptions}`,
-          },
+          { role: 'user', content: `Please summarise the following legal transcription:\n\n${combinedTranscriptions}` },
         ],
-        max_tokens: maxTokens,
+        max_tokens: 4096,
         temperature: 0.1,
         top_p: 0.95,
         frequency_penalty: 0.2,
         presence_penalty: 0.1,
       });
 
-      tokensUsed += inputTokens + response.usage.total_tokens;
-      return response.choices[0].message.content.trim();
+      return result.choices[0].message.content;
     } catch (error) {
-      console.error('Error in summariseWithRetry:', error);
-      if (error.status === 429 && attempt < maxRetries - 1) {
-        const retryAfter = Math.min(parseInt(error.headers['retry-after'] || '60', 10), 300);
-        console.log(`Rate limited. Retrying after ${retryAfter} seconds...`);
-        await setTimeout(retryAfter * 1000);
-      } else {
+      console.error(`Attempt ${attempt + 1} failed. Error:`, JSON.stringify(error, null, 2));
+
+      if (attempt === maxRetries - 1) {
+        // If this was the last attempt, throw the error
         throw error;
+      }
+
+      // If the error is due to rate limiting, wait before retrying
+      if (error.status === 429) {
+        const retryAfter = error.headers['retry-after'] ? parseInt(error.headers['retry-after']) : 5;
+        console.log(`Rate limit hit. Waiting for ${retryAfter} seconds before retrying...`);
+        await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+      } else {
+        // For other errors, wait for a short time before retrying
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
   }
-  throw new Error('Max retries reached');
 }
+
+// async function testAzureOpenAI() {
+//   try {
+//     const result = await client.chat.completions.create({
+//       model: 'gpt-4o',
+//       messages: [{ role: 'user', content: 'Say hello' }],
+//       max_tokens: 128,
+//     });
+//     console.log('Test response:', JSON.stringify(result, null, 2));
+//   } catch (error) {
+//     console.error('Test error:', JSON.stringify(error, null, 2));
+//   }
+// }
+
+// // Call this function before your main logic
+// await testAzureOpenAI();
 
 app.post('/upload-and-transcribe', upload.array('files'), async (req, res) => {
   console.log('Starting file upload process...');
@@ -193,24 +203,40 @@ app.post('/api/summarise', async (req, res) => {
   console.log('Received summarise request');
   try {
     const { transcriptionResults } = req.body;
+
+    // Check if transcriptionResults is valid
+    if (!transcriptionResults || !Array.isArray(transcriptionResults) || transcriptionResults.length === 0) {
+      return res.status(400).json({ error: 'Invalid or empty transcription results' });
+    }
+
+    // Estimate token count (rough estimation)
+    const estimatedTokens = transcriptionResults.reduce((total, result) => {
+      return total + result.content.combinedRecognizedPhrases[0].display.length / 4;
+    }, 0);
+
+    console.log(`Estimated tokens for summarisation: ${Math.ceil(estimatedTokens)}`);
+
+    // Check if estimated tokens exceed a safe limit (e.g., 100K tokens)
+    if (estimatedTokens > 100000) {
+      return res.status(413).json({ error: 'Transcription too large to summarise in one request' });
+    }
+
     const summary = await summariseWithRetry(transcriptionResults);
     res.json({ summary });
   } catch (error) {
     console.error('Error generating summary:', error);
     if (error.status === 429) {
-      const retryAfter = parseInt(error.headers['retry-after'] || '3600', 10);
-      res.status(503).json({
-        error: 'Service temporarily unavailable due to high demand. Please try again later.',
+      const retryAfter = parseInt(error.headers['retry-after'] || '60', 10);
+      res.status(429).json({
+        error: 'Rate limit exceeded. Please try again later.',
         retryAfter: retryAfter,
+        message: error.error?.message || 'Too many requests',
       });
-    } else if (error.status === 404 && error.code === 'DeploymentNotFound') {
-      res
-        .status(500)
-        .json({ error: 'GPT-4 Turbo deployment not found. Please check your Azure OpenAI configuration.' });
-    } else if (error.status === 401) {
-      res.status(500).json({ error: 'Authentication failed. Please check your Azure OpenAI API key.' });
     } else {
-      res.status(500).json({ error: 'An error occurred while generating the summary', details: error.message });
+      res.status(500).json({
+        error: 'An error occurred while generating the summary',
+        details: error.message,
+      });
     }
   }
 });
