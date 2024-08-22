@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Menu, X, User } from 'lucide-react'; // Import icons
+import { Menu, X, User } from 'lucide-react';
+import { Link } from 'react-router-dom'; // Import Link from react-router-dom
 
 const Header = () => {
-  // Simulated login state (replace with actual auth logic in a real app)
   const [isLoggedIn, setIsLoggedIn] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -10,34 +10,24 @@ const Header = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
-  // Navigation items for logged out users (marketing)
-  const marketingNavItems = [
-    { name: 'Features', href: '#features' },
-    { name: 'Pricing', href: '#pricing' },
-    { name: 'About Us', href: '#about' },
-    { name: 'Contact', href: '#contact' },
+  // Navigation items
+  const navItems = [
+    { name: 'Features', href: '/#features' },
+    { name: 'Pricing', href: '/#pricing' },
+    { name: 'About Us', href: '/#about' },
+    { name: 'Contact', href: '/#contact' },
+    { name: 'Transcribe', href: '/transcribe' },
   ];
-
-  // Navigation items for logged in users
-  const userNavItems = [
-    { name: 'Dashboard', href: '/dashboard' },
-    { name: 'Transcriptions', href: '/transcriptions' },
-    { name: 'Summaries', href: '/summaries' },
-    { name: 'Help', href: '/help' },
-  ];
-
-  // Determine which nav items to use based on login state
-  const navItems = isLoggedIn ? userNavItems : marketingNavItems;
 
   return (
-    <header className='bg-white shadow-md'>
+    <header className='bg-white shadow-md mb-7'>
       <div className='container mx-auto px-4 sm:px-6 lg:px-8'>
         <div className='flex justify-between items-center py-4 md:justify-start md:space-x-10'>
           {/* Logo */}
           <div className='flex justify-start lg:w-0 lg:flex-1'>
-            <a href='/' className='text-indigo-600 text-xl font-bold'>
+            <Link to='/' className='text-indigo-600 text-xl font-bold'>
               Legal Scriber
-            </a>
+            </Link>
           </div>
 
           {/* Mobile menu button */}
@@ -71,7 +61,7 @@ const Header = () => {
                 <User className='h-8 w-8 text-indigo-600 mr-2' />
                 <button
                   onClick={() => setIsLoggedIn(false)}
-                  className='ml-8 whitespace-nowrap inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700'>
+                  className='ml-8 whitespace-nowrap inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-indigo-600 hover:bg-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-opacity-75 transition'>
                   Log out
                 </button>
               </>
@@ -85,7 +75,7 @@ const Header = () => {
                 </a>
                 <a
                   href='#'
-                  className='ml-8 whitespace-nowrap inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700'>
+                  className='ml-8 whitespace-nowrap inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-indigo-600 hover:bg-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-opacity-75 transition'>
                   Sign up
                 </a>
               </>
@@ -111,7 +101,7 @@ const Header = () => {
             {isLoggedIn ? (
               <button
                 onClick={() => setIsLoggedIn(false)}
-                className='block w-full text-left px-3 py-2 rounded-md text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700'>
+                className='block w-full text-left px-3 py-2 rounded-md text-base font-medium text-white bg-indigo-600 hover:bg-indigo-800 transition'>
                 Log out
               </button>
             ) : (
@@ -124,7 +114,7 @@ const Header = () => {
                 </a>
                 <a
                   href='#'
-                  className='block px-3 py-2 rounded-md text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700'>
+                  className='block px-3 py-2 rounded-md text-base font-medium text-white bg-indigo-600 hover:bg-indigo-800 transition'>
                   Sign up
                 </a>
               </>
