@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import Header from './components/layouts/Header';
 import Home from './components/layouts/Home';
+import Dashboard from './components/Dashboard';
 import MultiAudioUploader from './components/MultiAudioUploader';
 import TranscriptionDisplay from './components/TranscriptionDisplay';
 import SummaryEditor from './components/SummaryEditor';
+import Summaries from './components/Summaries';
+import Transcriptions from './components/Transcriptions'; // Import the new Transcriptions component
 import FooterSection from './components/layouts/FooterSection';
-// import PrivacyPolicy from './components/layouts/PrivacyPolicy';
 import TermsAndConditions from './components/TermsAndConditions';
 
 function App() {
   const [transcriptionUrl, setTranscriptionUrl] = useState(null);
   const [summary, setSummary] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const handleTranscriptionCreated = url => {
     setTranscriptionUrl(url);
@@ -29,24 +32,30 @@ function App() {
   return (
     <Router>
       <div className='flex flex-col min-h-screen'>
-        <Header />
-        <main className='flex-grow'>
+        <Header isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />
+        <main className='flex-grow mt-20'>
           <Routes>
             <Route path='/' element={<Home />} />
+            <Route path='/dashboard' element={isLoggedIn ? <Dashboard /> : <Navigate to='/' replace />} />
             <Route
               path='/transcribe'
               element={
-                <div className='flex flex-col space-y-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-                  <MultiAudioUploader onTranscriptionCreated={handleTranscriptionCreated} />
-                  <TranscriptionDisplay
-                    transcriptionUrl={transcriptionUrl}
-                    onSummaryGenerated={handleSummaryGenerated}
-                  />
-                  <SummaryEditor initialSummary={summary} onSave={handleSaveSummary} />
-                </div>
+                isLoggedIn ? (
+                  <div className='flex flex-col space-y-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
+                    <MultiAudioUploader onTranscriptionCreated={handleTranscriptionCreated} />
+                    <TranscriptionDisplay
+                      transcriptionUrl={transcriptionUrl}
+                      onSummaryGenerated={handleSummaryGenerated}
+                    />
+                    <SummaryEditor initialSummary={summary} onSave={handleSaveSummary} />
+                  </div>
+                ) : (
+                  <Navigate to='/' replace />
+                )
               }
             />
-            {/* <Route path='/privacy-policy' element={<PrivacyPolicy />} /> */}
+            <Route path='/summaries' element={isLoggedIn ? <Summaries /> : <Navigate to='/' replace />} />
+            <Route path='/transcriptions' element={isLoggedIn ? <Transcriptions /> : <Navigate to='/' replace />} />
             <Route path='/terms-and-conditions' element={<TermsAndConditions />} />
           </Routes>
         </main>
