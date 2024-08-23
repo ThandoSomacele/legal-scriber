@@ -6,7 +6,6 @@ import { Link as ScrollLink } from 'react-scroll';
 const Header = ({ isLoggedIn, setIsLoggedIn }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const userMenuRef = useRef(null);
@@ -30,16 +29,6 @@ const Header = ({ isLoggedIn, setIsLoggedIn }) => {
 
   const toggleUserMenu = () => {
     setIsUserMenuOpen(!isUserMenuOpen);
-  };
-
-  const handleSignIn = async e => {
-    e.preventDefault();
-    setIsLoggingIn(true);
-    // Simulate an API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setIsLoggedIn(true);
-    setIsLoggingIn(false);
-    navigate('/dashboard');
   };
 
   const handleSignOut = () => {
@@ -127,21 +116,41 @@ const Header = ({ isLoggedIn, setIsLoggedIn }) => {
           <div className='hidden md:flex items-center justify-end md:flex-1 lg:w-0'>
             {isLoggedIn ? (
               <div className='relative' ref={userMenuRef}>
-                {/* ... (keep the existing user menu structure) */}
+                <button
+                  onClick={toggleUserMenu}
+                  className='flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'>
+                  <User className='h-8 w-8 text-indigo-600 mr-2' />
+                  <span>User Name</span>
+                  <ChevronDown className='ml-2 h-5 w-5' aria-hidden='true' />
+                </button>
+                {isUserMenuOpen && (
+                  <div className='origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none'>
+                    <RouterLink to='/profile' className='block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100'>
+                      Your Profile
+                    </RouterLink>
+                    <RouterLink to='/settings' className='block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100'>
+                      Settings
+                    </RouterLink>
+                    <button
+                      onClick={handleSignOut}
+                      className='block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100'>
+                      Sign out
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <>
                 <button
-                  onClick={handleSignIn}
-                  disabled={isLoggingIn}
+                  onClick={() => setIsLoggedIn(true)}
                   className='whitespace-nowrap text-base font-medium text-gray-500 hover:text-gray-900'>
-                  {isLoggingIn ? 'Signing in...' : 'Sign in'}
+                  Sign in
                 </button>
                 <a
                   href='#'
                   onClick={e => {
                     e.preventDefault();
-                    handleSignIn(e);
+                    setIsLoggedIn(true);
                   }}
                   className='ml-8 whitespace-nowrap inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700'>
                   Sign up
@@ -186,10 +195,9 @@ const Header = ({ isLoggedIn, setIsLoggedIn }) => {
             ) : (
               <>
                 <button
-                  onClick={handleSignIn}
-                  disabled={isLoggingIn}
+                  onClick={() => setIsLoggedIn(true)}
                   className='block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50'>
-                  {isLoggingIn ? 'Signing in...' : 'Sign in'}
+                  Sign in
                 </button>
                 <a
                   href='#'
