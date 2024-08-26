@@ -39,10 +39,10 @@ const Header = ({ isLoggedIn, setIsLoggedIn }) => {
 
   // Navigation items for logged out users (marketing)
   const marketingNavItems = [
-    { name: 'Features', href: 'features' },
-    { name: 'Pricing', href: 'pricing' },
-    { name: 'About Us', href: 'about' },
-    { name: 'Contact', href: 'contact' },
+    { name: 'Features', href: '/#features' },
+    { name: 'Pricing', href: '/#pricing' },
+    { name: 'About Us', href: '/#about' },
+    { name: 'Contact', href: '/#contact' },
   ];
 
   // Navigation items for logged in users

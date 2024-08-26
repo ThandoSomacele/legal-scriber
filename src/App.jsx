@@ -8,8 +8,10 @@ import TranscriptionDisplay from './components/TranscriptionDisplay';
 import SummaryEditor from './components/SummaryEditor';
 import Summaries from './components/Summaries';
 import Transcriptions from './components/Transcriptions'; // Import the new Transcriptions component
-import FooterSection from './components/layouts/FooterSection';
+import Footer from './components/layouts/Footer';
 import TermsAndConditions from './components/TermsAndConditions';
+import PitchDeck from './components/PitchDeck';
+import BusinessModelCanvas from './components/BusinessModelCanvas';
 
 function App() {
   const [transcriptionUrl, setTranscriptionUrl] = useState(null);
@@ -57,9 +59,11 @@ function App() {
             <Route path='/summaries' element={isLoggedIn ? <Summaries /> : <Navigate to='/' replace />} />
             <Route path='/transcriptions' element={isLoggedIn ? <Transcriptions /> : <Navigate to='/' replace />} />
             <Route path='/terms-and-conditions' element={<TermsAndConditions />} />
+            <Route path='/pitch-deck' element={<PitchDeck />} />
+            <Route path='/business-model-canvas' element={<BusinessModelCanvas />} />
           </Routes>
         </main>
-        <FooterSection />
+        <Footer />
       </div>
     </Router>
   );
