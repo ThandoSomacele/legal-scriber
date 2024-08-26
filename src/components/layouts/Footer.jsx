@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Facebook, Twitter, Instagram, Link } from 'lucide-react';
 import { Link as RouterLink } from 'react-router-dom';
+import PitchDeck from './../PitchDeck';
 
 const FooterSection = () => {
+  const [showPitchDeck, setShowPitchDeck] = useState(false);
   const currentYear = new Date().getFullYear();
 
   const footerLinks = [
@@ -13,6 +15,8 @@ const FooterSection = () => {
     { name: 'Contact', href: '/#contact' },
     { name: 'Privacy Policy', href: '/privacy-policy' },
     { name: 'Terms and Conditions', href: '/terms-and-conditions' },
+    { name: 'Pitch Deck', href: '/pitch-deck' },
+    { name: 'Business Model Canvas', href: '/business-model-canvas' },
   ];
 
   const socialLinks = [
@@ -47,9 +51,12 @@ const FooterSection = () => {
               <div>
                 <h3 className='text-sm font-semibold text-gray-200 tracking-wider uppercase'>Company</h3>
                 <ul role='list' className='mt-4 space-y-4'>
-                  {footerLinks.slice(0, 4).map(item => (
+                  {footerLinks.slice(0, 5).map(item => (
                     <li key={item.name}>
-                      <RouterLink to={item.href} className='text-base text-gray-300 hover:text-white'>
+                      <RouterLink
+                        to={item.href}
+                        className='text-base text-gray-300 hover:text-white'
+                        onClick={item.onClick}>
                         {item.name}
                       </RouterLink>
                     </li>
@@ -59,9 +66,12 @@ const FooterSection = () => {
               <div className='mt-12 md:mt-0'>
                 <h3 className='text-sm font-semibold text-gray-200 tracking-wider uppercase'>Legal</h3>
                 <ul role='list' className='mt-4 space-y-4'>
-                  {footerLinks.slice(4).map(item => (
+                  {footerLinks.slice(5).map(item => (
                     <li key={item.name}>
-                      <RouterLink to={item.href} className='text-base text-gray-300 hover:text-white'>
+                      <RouterLink
+                        to={item.href}
+                        className='text-base text-gray-300 hover:text-white'
+                        onClick={item.onClick}>
                         {item.name}
                       </RouterLink>
                     </li>
@@ -77,6 +87,16 @@ const FooterSection = () => {
           </p>
         </div>
       </div>
+      {showPitchDeck && (
+        <div className='fixed inset-0 z-50 overflow-auto bg-black bg-opacity-75 flex items-center justify-center'>
+          <div className='relative w-full h-full'>
+            <button onClick={() => setShowPitchDeck(false)} className='absolute top-4 right-4 text-white text-2xl z-50'>
+              &times;
+            </button>
+            <PitchDeck />
+          </div>
+        </div>
+      )}
     </footer>
   );
 };

@@ -20,17 +20,20 @@ Legal Scriber is a React-based web application designed to assist legal professi
 ### Installation
 
 1. Clone the repository:
+
    ```
    git clone https://github.com/your-username/legal-scriber.git
    cd legal-scriber
    ```
 
 2. Install dependencies:
+
    ```
    npm install
    ```
 
 3. Create a `.env` file in the root directory and add your Azure credentials:
+
    ```
    SPEECH_KEY=your_speech_key
    SERVICE_REGION=your_service_region
@@ -43,6 +46,7 @@ Legal Scriber is a React-based web application designed to assist legal professi
    ```
 
 4. Start the development server:
+
    ```
    npm run dev
    ```
@@ -60,7 +64,7 @@ legal-scriber/
 │   │   ├── SummaryEditor.jsx
 │   │   ├── MarkdownCheatsheet.jsx
 │   │   └── layouts/
-│   │       └── Header.tsx
+│   │       └── Header.jsx
 │   ├── styles/
 │   │   └── SummaryEditor.css
 │   ├── App.jsx
