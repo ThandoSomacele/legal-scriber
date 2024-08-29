@@ -169,7 +169,7 @@ app.post('/upload-and-transcribe', upload.array('files'), async (req, res) => {
     const requestBody = {
       contentUrls: uploadedFiles,
       properties: {
-        diarizationEnabled: false,
+        diarizationEnabled: true,
         wordLevelTimestampsEnabled: true,
         punctuationMode: 'DictatedAndAutomatic',
         profanityFilterMode: 'Masked',

@@ -269,8 +269,19 @@ export const getPlaceholderTranscription = () => {
           display: content,
         },
       ],
-      durationInTicks: 7200000000, // 1 hour in ticks (1 tick = 100 nanoseconds)
-      source: `https://example.com/placeholder_audio_${index + 1}.wav`,
+      recognizedPhrases: [
+        {
+          offsetInTicks: 0,
+          durationInTicks: 7200000000,
+          speaker: 1,
+          nBest: [
+            {
+              display: content,
+              words: content.split(' '),
+            },
+          ],
+        },
+      ],
     },
   }));
 };

@@ -17,6 +17,7 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
   const [scrollableResults, setScrollableResults] = useState({});
   const [hasScrolled, setHasScrolled] = useState({});
   const resultRefs = useRef({});
+  const [editableTranscriptions, setEditableTranscriptions] = useState([]);
 
   useEffect(() => {
     if (transcriptionUrl) {
@@ -63,6 +64,128 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
       });
     };
   }, [expandedResults, transcriptionResults]);
+
+  const formatTranscriptionWithSpeakers = result => {
+    if (!result || !result.content) {
+      console.error('Invalid transcription result structure:', result);
+      return []; // Return an empty array if the structure is invalid
+    }
+
+    let recognizedPhrases = result.content.recognizedPhrases;
+
+    // Handle placeholder data structure
+    if (!recognizedPhrases && result.content.combinedRecognizedPhrases) {
+      recognizedPhrases = [
+        {
+          offsetInTicks: 0,
+          speaker: 'Speaker 1',
+          nBest: [{ display: result.content.combinedRecognizedPhrases[0].display }],
+        },
+      ];
+    }
+
+    if (!recognizedPhrases) {
+      console.error('No recognized phrases found:', result);
+      return [];
+    }
+
+    let formattedTranscription = [];
+    let currentSpeaker = null;
+    let currentText = '';
+    let currentWordCount = 0;
+
+    recognizedPhrases.forEach((phrase, index) => {
+      if (!phrase || !phrase.nBest || phrase.nBest.length === 0) {
+        console.warn('Invalid phrase structure:', phrase);
+        return; // Skip this phrase if it's invalid
+      }
+
+      const speaker = `Speaker ${phrase.speaker || 'Unknown'}`;
+      const timestamp = formatTimestamp(phrase.offsetInTicks);
+      const wordCount = phrase.nBest[0].words
+        ? phrase.nBest[0].words.length
+        : phrase.nBest[0].display.split(' ').length;
+
+      if (speaker !== currentSpeaker || index === recognizedPhrases.length - 1) {
+        if (currentText) {
+          formattedTranscription.push({
+            speaker: currentSpeaker,
+            timestamp: formatTimestamp(recognizedPhrases[formattedTranscription.length].offsetInTicks),
+            text: currentText.trim(),
+            wordCount: currentWordCount,
+          });
+        }
+        currentSpeaker = speaker;
+        currentText = phrase.nBest[0].display || '';
+        currentWordCount = wordCount;
+      } else {
+        currentText += ' ' + (phrase.nBest[0].display || '');
+        currentWordCount += wordCount;
+      }
+    });
+
+    // Add the last segment if it wasn't added in the loop
+    if (currentText) {
+      formattedTranscription.push({
+        speaker: currentSpeaker,
+        timestamp: formatTimestamp(recognizedPhrases[recognizedPhrases.length - 1].offsetInTicks),
+        text: currentText.trim(),
+        wordCount: currentWordCount,
+      });
+    }
+
+    return formattedTranscription;
+  };
+
+  const formatTimestamp = offsetInTicks => {
+    const totalSeconds = Math.floor(offsetInTicks / 10000000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `[${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds
+      .toString()
+      .padStart(2, '0')}]`;
+  };
+
+  useEffect(() => {
+    if (transcriptionResults.length > 0) {
+      const formattedResults = transcriptionResults.map(result => ({
+        fileName: result.fileName,
+        content: formatTranscriptionWithSpeakers(result),
+      }));
+      setEditableTranscriptions(formattedResults);
+    }
+  }, [transcriptionResults]);
+
+  const handleEdit = (fileIndex, segmentIndex, field, value) => {
+    setEditableTranscriptions(prev => {
+      const newTranscriptions = [...prev];
+      newTranscriptions[fileIndex].content[segmentIndex][field] = value;
+      return newTranscriptions;
+    });
+  };
+
+  const renderEditableTranscription = (transcription, fileIndex) => {
+    return transcription.content.map((segment, segmentIndex) => (
+      <div key={segmentIndex} className='mb-4 p-2 bg-indigo-50 rounded'>
+        <div className='flex items-center mb-2'>
+          <span className='text-gray-500 mr-2'>{segment.timestamp}</span>
+          <input
+            className='font-semibold text-indigo-600 bg-transparent border-b border-indigo-300 focus:outline-none focus:border-indigo-500'
+            value={segment.speaker}
+            onChange={e => handleEdit(fileIndex, segmentIndex, 'speaker', e.target.value)}
+          />
+        </div>
+        <textarea
+          className='text-indigo-800 bg-transparent border border-indigo-300 focus:outline-none focus:border-indigo-500 w-full p-2 rounded'
+          value={segment.text}
+          onChange={e => handleEdit(fileIndex, segmentIndex, 'text', e.target.value)}
+          rows={Math.min(10, segment.text.split('\n').length)}
+        />
+        <div className='text-sm text-gray-500 mt-1'>Word count: {segment.wordCount}</div>
+      </div>
+    ));
+  };
 
   const toggleResultExpansion = index => {
     setExpandedResults(prev => ({
@@ -290,8 +413,8 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
         <div className='space-y-4'>
           <p className='text-indigo-600 font-semibold'>Status: {transcriptionStatus}</p>
           {renderTranscriptionReport()}
-          {transcriptionResults.map((result, index) => (
-            <div key={index} className='border border-indigo-200 rounded-lg p-4'>
+          {editableTranscriptions.map((result, index) => (
+            <div key={index} className='border border-indigo-200 rounded-lg p-4 mt-4'>
               <div
                 className='flex justify-between items-center cursor-pointer'
                 onClick={() => toggleResultExpansion(index)}>
@@ -300,21 +423,16 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
               </div>
               {expandedResults[index] && (
                 <div className='mt-2 space-y-2'>
-                  <p className='text-sm text-gray-600'>Duration: {formatDuration(result.content.durationInTicks)}</p>
-                  <div className='relative'>
-                    <div
-                      ref={el => (resultRefs.current[index] = el)}
-                      className='bg-indigo-50 p-3 rounded-md max-h-[500px] overflow-y-auto'>
-                      <p className='text-indigo-800 whitespace-pre-wrap'>
-                        {result.content.combinedRecognizedPhrases[0].display}
-                      </p>
-                    </div>
-                    {scrollableResults[index] && !hasScrolled[index] && (
-                      <div className='absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-indigo-50 to-transparent pointer-events-none flex justify-center items-end'>
-                        <ChevronDown className='text-indigo-600 animate-bounce mb-2' size={24} />
-                      </div>
-                    )}
+                  <div
+                    ref={el => (resultRefs.current[index] = el)}
+                    className='bg-indigo-50 p-3 rounded-md max-h-[500px] overflow-y-auto'>
+                    {renderEditableTranscription(result, index)}
                   </div>
+                  {scrollableResults[index] && !hasScrolled[index] && (
+                    <div className='absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-indigo-50 to-transparent pointer-events-none flex justify-center items-end'>
+                      <ChevronDown className='text-indigo-600 animate-bounce mb-2' size={24} />
+                    </div>
+                  )}
                 </div>
               )}
             </div>
