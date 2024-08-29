@@ -21,8 +21,10 @@ dotenv.config();
 const app = express();
 const port = 3000;
 
+// Set a reasonable size limit for JSON payloads
+app.use(express.json({ limit: '10mb' })); // Increased from default, but still secure
+
 app.use(cors());
-app.use(express.json());
 
 // Configure multer for handling file uploads
 const storage = multer.memoryStorage();
@@ -65,51 +67,70 @@ const client = new AzureOpenAI({
 });
 
 async function summariseWithRetry(transcriptionResults, maxRetries = 5) {
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      console.log(`Attempt ${attempt + 1} of ${maxRetries} to summarize with model: gpt-4o`);
-      console.log('Using endpoint:', process.env.AZURE_OPENAI_ENDPOINT);
+  const maxInputLength = 120000; // Slightly less than the 128,000 max to allow for some buffer
+  let fullSummary = '';
 
-      const combinedTranscriptions = transcriptionResults
-        .map(result => result.content.combinedRecognizedPhrases[0].display)
-        .join('\n\n');
+  // Combine all transcription results
+  const combinedTranscriptions = transcriptionResults
+    .map(result => result.content.combinedRecognizedPhrases[0].display)
+    .join('\n\n');
 
-      const result = await client.chat.completions.create({
-        model: 'gpt-4o', // This should match your deployment name
-        messages: [
-          {
-            role: 'system',
-            content: modelContent,
-          },
-          { role: 'user', content: `Please summarise the following legal transcription:\n\n${combinedTranscriptions}` },
-        ],
-        max_tokens: 4096,
-        temperature: 0.1,
-        top_p: 0.95,
-        frequency_penalty: 0.2,
-        presence_penalty: 0.1,
-      });
+  // Split the combined transcriptions into chunks
+  const chunks = [];
+  for (let i = 0; i < combinedTranscriptions.length; i += maxInputLength) {
+    chunks.push(combinedTranscriptions.slice(i, i + maxInputLength));
+  }
 
-      return result.choices[0].message.content;
-    } catch (error) {
-      console.error(`Attempt ${attempt + 1} failed. Error:`, JSON.stringify(error, null, 2));
+  console.log(`Processing ${chunks.length} chunks for summarisation`);
 
-      if (attempt === maxRetries - 1) {
-        // If this was the last attempt, throw the error
-        throw error;
-      }
+  for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+    const chunk = chunks[chunkIndex];
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        console.log(`Processing chunk ${chunkIndex + 1}/${chunks.length}, attempt ${attempt + 1} of ${maxRetries}`);
 
-      // If the error is due to rate limiting, wait before retrying
-      if (error.status === 429) {
-        const retryAfter = error.headers['retry-after'] ? parseInt(error.headers['retry-after']) : 5;
-        console.log(`Rate limit hit. Waiting for ${retryAfter} seconds before retrying...`);
-        await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
-      } else {
-        // For other errors, wait for a short time before retrying
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        const prompt =
+          chunkIndex === 0
+            ? `Please summarise the following legal transcription:\n\n${chunk}`
+            : `Please continue summarising the legal transcription. Here's the next part:\n\n${chunk}`;
+
+        const result = await client.chat.completions.create({
+          model: 'gpt-4o', // Make sure this matches your deployment name
+          messages: [
+            { role: 'system', content: modelContent },
+            { role: 'user', content: prompt },
+          ],
+          max_tokens: 4096,
+          temperature: 0.1,
+          top_p: 0.95,
+          frequency_penalty: 0.2,
+          presence_penalty: 0.1,
+        });
+
+        fullSummary += result.choices[0].message.content + '\n\n';
+        break; // Success, move to the next chunk
+      } catch (error) {
+        console.error(
+          `Attempt ${attempt + 1} failed for chunk ${chunkIndex + 1}. Error:`,
+          JSON.stringify(error, null, 2)
+        );
+
+        if (attempt === maxRetries - 1) {
+          throw error; // Throw error after all retries are exhausted
+        }
+
+        if (error.status === 429) {
+          const retryAfter = error.headers['retry-after'] ? parseInt(error.headers['retry-after']) : 5;
+          console.log(`Rate limit hit. Waiting for ${retryAfter} seconds before retrying...`);
+          await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+        } else {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
       }
     }
   }
+
+  return fullSummary.trim();
 }
 
 // async function testAzureOpenAI() {
@@ -204,21 +225,8 @@ app.post('/api/summarise', async (req, res) => {
   try {
     const { transcriptionResults } = req.body;
 
-    // Check if transcriptionResults is valid
     if (!transcriptionResults || !Array.isArray(transcriptionResults) || transcriptionResults.length === 0) {
       return res.status(400).json({ error: 'Invalid or empty transcription results' });
-    }
-
-    // Estimate token count (rough estimation)
-    const estimatedTokens = transcriptionResults.reduce((total, result) => {
-      return total + result.content.combinedRecognizedPhrases[0].display.length / 4;
-    }, 0);
-
-    console.log(`Estimated tokens for summarisation: ${Math.ceil(estimatedTokens)}`);
-
-    // Check if estimated tokens exceed a safe limit (e.g., 100K tokens)
-    if (estimatedTokens > 100000) {
-      return res.status(413).json({ error: 'Transcription too large to summarise in one request' });
     }
 
     const summary = await summariseWithRetry(transcriptionResults);
