@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-unused-vars
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import Header from './components/layouts/Header';
@@ -16,7 +17,7 @@ import BusinessModelCanvas from './components/BusinessModelCanvas';
 function App() {
   const [transcriptionUrl, setTranscriptionUrl] = useState(null);
   const [summary, setSummary] = useState('');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(true);
 
   const handleTranscriptionCreated = url => {
     setTranscriptionUrl(url);
