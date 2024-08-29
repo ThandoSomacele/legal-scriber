@@ -2,7 +2,7 @@
 import React from 'react';
 import FeaturesSection from '../FeaturesSection';
 import PricingSection from '../PricingSection';
-import AboutUsSection from '../AboutUsSection';
+// import AboutUsSection from '../AboutUsSection';
 import ContactUsSection from '../ContactUsSection';
 import HeroSection from '../HeroSection';
 
@@ -13,7 +13,7 @@ const Home = () => {
         <HeroSection />
         <FeaturesSection />
         <PricingSection />
-        <AboutUsSection />
+        {/* <AboutUsSection /> */}
         <ContactUsSection />
       </main>
     </div>

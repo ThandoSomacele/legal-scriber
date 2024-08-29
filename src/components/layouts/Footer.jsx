@@ -15,8 +15,8 @@ const FooterSection = () => {
     { name: 'Contact', href: '/#contact' },
     { name: 'Privacy Policy', href: '/privacy-policy' },
     { name: 'Terms and Conditions', href: '/terms-and-conditions' },
-    { name: 'Pitch Deck', href: '/pitch-deck' },
-    { name: 'Business Model Canvas', href: '/business-model-canvas' },
+    // { name: 'Pitch Deck', href: '/pitch-deck' },
+    // { name: 'Business Model Canvas', href: '/business-model-canvas' },
   ];
 
   const socialLinks = [
