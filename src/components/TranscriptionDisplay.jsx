@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-unused-vars
 import React, { useState, useEffect, useRef } from 'react';
 import { FileText, Loader, ChevronDown, ChevronUp, AlertCircle, FileBarChart, Lightbulb } from 'lucide-react';
 import axios from 'axios';
@@ -235,10 +236,10 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
     setSummarisationError(null);
     setRetryAfter(null);
     try {
-      console.log('Sending data to summarise:', { transcriptionResults });
+      console.log('Starting summarisation process');
       const response = await axios.post('http://localhost:3000/api/summarise', { transcriptionResults });
-      console.log('Received summary:', response.data);
-      onSummaryGenerated(response.data.summary);
+      console.log('Summarisation completed');
+      onSummaryGenerated(response.data.summary.trim());
     } catch (error) {
       console.error('Error generating summary:', error);
       if (error.response) {
@@ -246,12 +247,10 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
         console.error('Error response status:', error.response.status);
         console.error('Error response headers:', error.response.headers);
         if (error.response.status === 429) {
-          setSummarisationError('Rate limit exceeded for GPT-4 Turbo. Please try again later.');
+          setSummarisationError('Rate limit exceeded. Please try again later.');
           setRetryAfter(error.response.data.retryAfter);
         } else {
-          setSummarisationError(
-            `Server error: ${error.response.status}. ${error.response.data.error || 'Please try again.'}`
-          );
+          setSummarisationError('An error occurred while generating the summary. Please try again.');
         }
       } else if (error.request) {
         console.error('Error request:', error.request);

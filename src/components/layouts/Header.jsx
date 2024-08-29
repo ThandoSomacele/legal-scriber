@@ -51,7 +51,7 @@ const Header = ({ isLoggedIn, setIsLoggedIn }) => {
     { name: 'Dashboard', href: '/dashboard' },
     { name: 'Transcriptions', href: '/transcriptions' },
     { name: 'Summaries', href: '/summaries' },
-    { name: 'New Transcription', href: '/transcribe' },
+    { name: 'Transcribe', href: '/transcribe' },
   ];
 
   // Determine which nav items to use based on login state
@@ -121,7 +121,7 @@ const Header = ({ isLoggedIn, setIsLoggedIn }) => {
                   onClick={toggleUserMenu}
                   className='flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'>
                   <User className='h-8 w-8 text-indigo-600 mr-2' />
-                  <span>User Name</span>
+                  <span>Thando</span>
                   <ChevronDown className='ml-2 h-5 w-5' aria-hidden='true' />
                 </button>
                 {isUserMenuOpen && (
