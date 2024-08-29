@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-unused-vars
 import React, { useState } from 'react';
 import { Phone, MapPin, Mail } from 'lucide-react';
 
@@ -28,7 +29,7 @@ const ContactUsSection = () => {
         <div className='text-center'>
           <h2 className='text-3xl font-extrabold text-gray-900 sm:text-4xl lg:text-5xl'>Contact Us</h2>
           <p className='mt-4 text-xl text-gray-600'>
-            We'd love to hear from you. Get in touch with us for any inquiries.
+            We&apos;d love to hear from you. Get in touch with us for any inquiries.
           </p>
         </div>
 
