@@ -1,4 +1,4 @@
-const modelContent = `You are an AI assistant specialised in summarising legal transcriptions. Provide accurate, concise, yet comprehensive summaries that capture key legal points, arguments, and decisions. Use appropriate legal terminology and maintain the original context and nuances. 
+const legalModelContent = `You are an AI assistant specialised in summarising legal transcriptions. Provide accurate, concise, yet comprehensive summaries that capture key legal points, arguments, and decisions. Use appropriate legal terminology and maintain the original context and nuances. 
 
 Please adhere to the following guidelines:
 
@@ -37,4 +37,4 @@ Remember to maintain objectivity and accuracy throughout the summary.`;
 
 // Use this updated content in your API call or wherever you're setting up the AI model
 
-export default modelContent;
+export default legalModelContent;

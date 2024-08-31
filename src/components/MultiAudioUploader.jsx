@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, X, Loader, RefreshCw, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 
-const MultiAudioUploaderForm = ({ onTranscriptionCreated }) => {
+const MultiAudioUploaderForm = ({ onTranscriptionCreated, summaryType }) => {
   const [audioFiles, setAudioFiles] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [transcriptionStatus, setTranscriptionStatus] = useState(null);
@@ -25,6 +25,7 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated }) => {
   const uploadAndTranscribe = async files => {
     const formData = new FormData();
     files.forEach(file => formData.append('files', file));
+    formData.append('summaryType', summaryType); // Add summaryType to the form data
 
     try {
       const response = await fetch('http://localhost:3000/upload-and-transcribe', {
@@ -100,10 +101,23 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated }) => {
     setIsSubmitting(true);
     setError(null);
     try {
-      const url = await uploadAndTranscribe(audioFiles);
-      setTranscriptionUrl(url);
+      const formData = new FormData();
+      audioFiles.forEach(file => formData.append('files', file));
+      formData.append('summaryType', summaryType);
+
+      const response = await fetch('http://localhost:3000/upload-and-transcribe', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setTranscriptionUrl(data.transcriptionUrl);
       setTranscriptionStatus('NotStarted');
-      onTranscriptionCreated(url);
+      onTranscriptionCreated(data.transcriptionUrl, data.summaryType);
     } catch (error) {
       console.error('Transcription error:', error);
       setError(`An error occurred during transcription: ${error.message}`);
@@ -130,10 +144,11 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className='p-4 sm:p-6 bg-white rounded-lg shadow-md'>
-      <h2 className='text-xl sm:text-2xl font-bold text-indigo-700 mb-4'>Audio Transcription Service</h2>
+    <form onSubmit={handleSubmit} className='bg-white shadow-md rounded-lg p-6'>
+      <h2 className='text-2xl font-bold text-indigo-700 mb-4'>
+        {summaryType === 'legal' ? 'Legal Hearing' : 'Meeting'} Audio Transcription Service
+      </h2>
 
-      {/* File upload area */}
       <div className='mb-4'>
         <label
           htmlFor='audio-upload'
@@ -141,7 +156,7 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated }) => {
           <span className='flex items-center space-x-2'>
             <Upload className='w-5 h-5 sm:w-6 sm:h-6 text-indigo-600' />
             <span className='font-medium text-sm sm:text-base text-indigo-600'>
-              Drop audio files here or click to upload
+              Drop {summaryType === 'legal' ? 'legal hearing' : 'meeting'} audio files here or click to upload
             </span>
           </span>
           <input
@@ -156,7 +171,6 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated }) => {
         </label>
       </div>
 
-      {/* File list */}
       {audioFiles.length > 0 && (
         <div className='space-y-2 mb-4'>
           {audioFiles.map((file, index) => (
@@ -174,7 +188,6 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated }) => {
         </div>
       )}
 
-      {/* Submit button */}
       <button
         type='submit'
         className='w-full py-2 px-4 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-opacity-75 transition'
@@ -185,11 +198,10 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated }) => {
             Transcribing...
           </>
         ) : (
-          'Transcribe Audio'
+          `Transcribe ${summaryType === 'legal' ? 'Legal Hearing' : 'Meeting'} Audio`
         )}
       </button>
 
-      {/* Transcription status */}
       {transcriptionStatus && (
         <div className='mt-4 p-2 bg-indigo-50 rounded-md'>
           <p className='text-sm text-indigo-700 flex items-center'>
@@ -202,7 +214,6 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated }) => {
         </div>
       )}
 
-      {/* Error message */}
       {error && (
         <div className='mt-4 p-2 bg-red-100 text-red-700 rounded-md'>
           <p className='text-sm flex items-center'>
