@@ -17,7 +17,7 @@ function App() {
   const [transcriptionUrl, setTranscriptionUrl] = useState(null);
   const [summary, setSummary] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(true);
-  const [summaryType, setSummaryType] = useState('legal'); // New state for summary type
+  const [summaryType, setSummaryType] = useState('legal');
 
   const handleTranscriptionCreated = (url, type) => {
     setTranscriptionUrl(url);

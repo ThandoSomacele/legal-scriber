@@ -1,4 +1,4 @@
-export const getPlaceholderTranscription = () => {
+export const getLegalPlaceholderTranscription = () => {
   const transcriptionParts = [
     `
     # Transcription of Hearing: Smith v. Greenfield Industries Ltd.

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FileText, Loader, ChevronDown, ChevronUp, AlertCircle, FileBarChart, Lightbulb } from 'lucide-react';
 import axios from 'axios';
-import { getPlaceholderTranscription } from '../lib/placeHolderTranscription';
+import { getLegalPlaceholderTranscription } from '../lib/legalPlaceHolderTranscription';
+import { getExcoMeetingPlaceholderTranscription } from '../lib/excomeetingPlaceHolderTranscription';
 
-const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
+const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated, summaryType }) => {
   const [transcriptionResults, setTranscriptionResults] = useState([]);
   const [transcriptionReport, setTranscriptionReport] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -15,7 +16,6 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
   const [retryAfter, setRetryAfter] = useState(null);
   const [scrollableResults, setScrollableResults] = useState({});
   const [hasScrolled, setHasScrolled] = useState({});
-  const [summaryType, setSummaryType] = useState('legal'); // New state for summary type
 
   const resultRefs = useRef({});
 
@@ -23,27 +23,34 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
     if (transcriptionUrl) {
       checkTranscriptionStatus();
     } else {
-      // Use placeholder data when there's no transcriptionUrl
-      const placeholderData = getPlaceholderTranscription();
+      const placeholderData =
+        summaryType === 'legal' ? getLegalPlaceholderTranscription() : getExcoMeetingPlaceholderTranscription();
       setTranscriptionResults(placeholderData);
       setTranscriptionStatus('Completed');
     }
-  }, [transcriptionUrl]);
+  }, [transcriptionUrl, summaryType]);
 
   useEffect(() => {
     const checkScrollable = () => {
       const newScrollableResults = {};
+      const newHasScrolled = {};
       Object.keys(expandedResults).forEach(index => {
         if (expandedResults[index] && resultRefs.current[index]) {
-          const { scrollHeight, clientHeight } = resultRefs.current[index];
+          const { scrollHeight, clientHeight, scrollTop } = resultRefs.current[index];
           newScrollableResults[index] = scrollHeight > clientHeight;
+          newHasScrolled[index] = scrollTop > 0;
         }
       });
       setScrollableResults(newScrollableResults);
+      setHasScrolled(newHasScrolled);
     };
 
     const handleScroll = index => {
-      setHasScrolled(prev => ({ ...prev, [index]: true }));
+      const { scrollTop, scrollHeight, clientHeight } = resultRefs.current[index];
+      setHasScrolled(prev => ({
+        ...prev,
+        [index]: scrollTop > 0 || scrollHeight <= clientHeight,
+      }));
     };
 
     Object.keys(expandedResults).forEach(index => {
@@ -236,7 +243,24 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
       console.log('Summarisation completed');
       onSummaryGenerated(response.data.summary.trim());
     } catch (error) {
-      // ... (error handling code remains the same)
+      console.error('Error generating summary:', error);
+      if (error.response) {
+        console.error('Error response data:', error.response.data);
+        console.error('Error response status:', error.response.status);
+        console.error('Error response headers:', error.response.headers);
+        if (error.response.status === 429) {
+          setSummarisationError('Rate limit exceeded. Please try again later.');
+          setRetryAfter(error.response.data.retryAfter);
+        } else {
+          setSummarisationError('An error occurred while generating the summary. Please try again.');
+        }
+      } else if (error.request) {
+        console.error('Error request:', error.request);
+        setSummarisationError('No response received from the server. Please try again.');
+      } else {
+        console.error('Error message:', error.message);
+        setSummarisationError('An error occurred while sending the request. Please try again.');
+      }
     } finally {
       setIsSummarising(false);
     }
@@ -252,7 +276,9 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
     <div className='bg-white shadow-md rounded-lg p-6'>
       <h2 className='text-2xl font-semibold text-indigo-700 mb-4 flex items-center'>
         <FileText className='mr-2' />
-        {transcriptionUrl ? 'Transcription Results' : 'Placeholder Transcription'}
+        {transcriptionUrl
+          ? 'Transcription Results'
+          : `${summaryType === 'legal' ? 'Legal' : 'Meeting'} Placeholder Transcription`}
       </h2>
 
       {isLoading ? (
@@ -279,18 +305,20 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
               {expandedResults[index] && (
                 <div className='mt-2 space-y-2'>
                   <p className='text-sm text-gray-600'>Duration: {formatDuration(result.content.durationInTicks)}</p>
-                  <div
-                    ref={el => (resultRefs.current[index] = el)}
-                    className='bg-indigo-50 p-3 rounded-md max-h-[500px] overflow-y-auto'>
-                    <p className='text-indigo-800 whitespace-pre-wrap'>
-                      {result.content.combinedRecognizedPhrases[0].display}
-                    </p>
-                  </div>
-                  {scrollableResults[index] && !hasScrolled[index] && (
-                    <div className='absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-indigo-50 to-transparent pointer-events-none flex justify-center items-end'>
-                      <ChevronDown className='text-indigo-600 animate-bounce mb-2' size={24} />
+                  <div className='relative'>
+                    <div
+                      ref={el => (resultRefs.current[index] = el)}
+                      className='bg-indigo-50 p-3 rounded-md max-h-[500px] overflow-y-auto'>
+                      <p className='text-indigo-800 whitespace-pre-wrap'>
+                        {result.content.combinedRecognizedPhrases[0].display}
+                      </p>
                     </div>
-                  )}
+                    {scrollableResults[index] && !hasScrolled[index] && (
+                      <div className='absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-indigo-50 to-transparent pointer-events-none flex justify-center items-end'>
+                        <ChevronDown className='text-indigo-600 animate-bounce mb-2' size={24} />
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -310,7 +338,7 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
                   name='summaryType'
                   value='legal'
                   checked={summaryType === 'legal'}
-                  onChange={e => setSummaryType(e.target.value)}
+                  readOnly
                 />
                 <span className='ml-2'>Legal Hearing</span>
               </label>
@@ -321,7 +349,7 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
                   name='summaryType'
                   value='meeting'
                   checked={summaryType === 'meeting'}
-                  onChange={e => setSummaryType(e.target.value)}
+                  readOnly
                 />
                 <span className='ml-2'>Meeting Minutes</span>
               </label>
@@ -342,7 +370,15 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
               ? 'Summarising...'
               : `Summarise ${summaryType === 'legal' ? 'Legal Hearing' : 'Meeting Minutes'}`}
           </button>
-          {/* ... (error messages and retry information) */}
+          {summarisationError && (
+            <p className='text-red-600 mt-2 flex items-center'>
+              <AlertCircle className='mr-2' size={18} />
+              {summarisationError}
+            </p>
+          )}
+          {retryAfter && (
+            <p className='text-indigo-600 mt-2'>You can try again in approximately {formatRetryTime(retryAfter)}.</p>
+          )}
         </div>
       )}
 
