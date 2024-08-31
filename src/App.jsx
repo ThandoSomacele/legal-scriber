@@ -73,7 +73,7 @@ function App() {
                         </button>
                       </div>
                     </div>
-                    <MultiAudioUploader onTranscriptionCreated={handleTranscriptionCreated} />
+                    <MultiAudioUploader onTranscriptionCreated={handleTranscriptionCreated} summaryType={summaryType} />
                     <TranscriptionDisplay
                       transcriptionUrl={transcriptionUrl}
                       onSummaryGenerated={handleSummaryGenerated}
