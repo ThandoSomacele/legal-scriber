@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import apiClient from './apiClient';
 import Header from './components/layouts/Header';
 import Home from './components/layouts/Home';
 import Dashboard from './components/Dashboard';

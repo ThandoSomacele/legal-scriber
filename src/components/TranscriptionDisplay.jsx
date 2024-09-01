@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FileText, Loader, ChevronDown, ChevronUp, AlertCircle, FileBarChart, Lightbulb } from 'lucide-react';
-import axios from 'axios';
+import apiClient from '../apiClient';
 import { getLegalPlaceholderTranscription } from '../lib/legalPlaceHolderTranscription';
 import { getExcoMeetingPlaceholderTranscription } from '../lib/excomeetingPlaceHolderTranscription';
 
@@ -236,9 +236,10 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated, summaryTyp
     setRetryAfter(null);
     try {
       console.log('Starting summarisation process');
-      const response = await axios.post('http://localhost:3000/api/summarise', {
-        transcriptionResults,
-        summaryType, // Include the summary type in the request
+
+      const response = await apiClient.post('/api/summarise', {
+        transcriptionResults: transcriptionResults,
+        summaryType: summaryType,
       });
       console.log('Summarisation completed');
       onSummaryGenerated(response.data.summary.trim());

@@ -14,18 +14,25 @@ import { EventEmitter } from 'events';
 import { AzureOpenAI } from 'openai';
 import legalModelContent from './src/lib/legalModelContent.js';
 import meetingMinutesModelContent from './src/lib/meetingMinutesModelContent.js';
+import config from './config';
 
 EventEmitter.defaultMaxListeners = 15;
 
 dotenv.config();
 
 const app = express();
+
 const port = 3000;
 
 // Set a reasonable size limit for JSON payloads
 app.use(express.json({ limit: '10mb' })); // Increased from default, but still secure
 
-app.use(cors());
+app.use(
+  cors({
+    origin: config.frontendUrl,
+    credentials: true,
+  })
+);
 
 // Configure multer for handling file uploads
 const storage = multer.memoryStorage();
@@ -251,6 +258,8 @@ app.post('/api/summarise', async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
+const PORT = process.env.PORT || 3001;
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });

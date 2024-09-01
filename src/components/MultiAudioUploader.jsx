@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, X, Loader, RefreshCw, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import apiClient from '../apiClient';
 
 const MultiAudioUploaderForm = ({ onTranscriptionCreated, summaryType }) => {
   const [audioFiles, setAudioFiles] = useState([]);
@@ -25,22 +26,15 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated, summaryType }) => {
   const uploadAndTranscribe = async files => {
     const formData = new FormData();
     files.forEach(file => formData.append('files', file));
-    formData.append('summaryType', summaryType); // Add summaryType to the form data
+    formData.append('summaryType', summaryType);
 
     try {
-      const response = await fetch('http://localhost:3000/upload-and-transcribe', {
-        method: 'POST',
-        body: formData,
+      const response = await apiClient.post('/upload-and-transcribe', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Error response:', errorText);
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data.transcriptionUrl;
+      return response.data.transcriptionUrl;
     } catch (error) {
       console.error('Upload and transcribe error:', error);
       throw error;
@@ -49,17 +43,10 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated, summaryType }) => {
 
   const checkTranscriptionStatus = async url => {
     try {
-      const response = await fetch(
-        `http://localhost:3000/transcription-status?transcriptionUrl=${encodeURIComponent(url)}`
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data.status;
+      const response = await apiClient.get('/transcription-status', {
+        params: { transcriptionUrl: url },
+      });
+      return response.data.status;
     } catch (error) {
       console.error('Error checking transcription status:', error);
       throw error;
@@ -105,19 +92,10 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated, summaryType }) => {
       audioFiles.forEach(file => formData.append('files', file));
       formData.append('summaryType', summaryType);
 
-      const response = await fetch('http://localhost:3000/upload-and-transcribe', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setTranscriptionUrl(data.transcriptionUrl);
+      const response = await apiClient.post('/upload-and-transcribe', formData);
+      setTranscriptionUrl(response.data.transcriptionUrl);
       setTranscriptionStatus('NotStarted');
-      onTranscriptionCreated(data.transcriptionUrl, data.summaryType);
+      onTranscriptionCreated(response.data.transcriptionUrl, response.data.summaryType);
     } catch (error) {
       console.error('Transcription error:', error);
       setError(`An error occurred during transcription: ${error.message}`);
