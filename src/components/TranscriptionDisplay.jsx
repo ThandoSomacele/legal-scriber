@@ -1,10 +1,11 @@
 // eslint-disable-next-line no-unused-vars
 import React, { useState, useEffect, useRef } from 'react';
 import { FileText, Loader, ChevronDown, ChevronUp, AlertCircle, FileBarChart, Lightbulb } from 'lucide-react';
-import axios from 'axios';
-import { getPlaceholderTranscription } from '../lib/placeHolderTranscription';
+import apiClient from '../apiClient';
+import { getLegalPlaceholderTranscription } from '../lib/legalPlaceHolderTranscription';
+import { getExcoMeetingPlaceholderTranscription } from '../lib/excomeetingPlaceHolderTranscription';
 
-const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
+const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated, summaryType }) => {
   const [transcriptionResults, setTranscriptionResults] = useState([]);
   const [transcriptionReport, setTranscriptionReport] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -16,33 +17,41 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
   const [retryAfter, setRetryAfter] = useState(null);
   const [scrollableResults, setScrollableResults] = useState({});
   const [hasScrolled, setHasScrolled] = useState({});
+
   const resultRefs = useRef({});
 
   useEffect(() => {
     if (transcriptionUrl) {
       checkTranscriptionStatus();
     } else {
-      // Use placeholder data when there's no transcriptionUrl
-      const placeholderData = getPlaceholderTranscription();
+      const placeholderData =
+        summaryType === 'legal' ? getLegalPlaceholderTranscription() : getExcoMeetingPlaceholderTranscription();
       setTranscriptionResults(placeholderData);
       setTranscriptionStatus('Completed');
     }
-  }, [transcriptionUrl]);
+  }, [transcriptionUrl, summaryType]);
 
   useEffect(() => {
     const checkScrollable = () => {
       const newScrollableResults = {};
+      const newHasScrolled = {};
       Object.keys(expandedResults).forEach(index => {
         if (expandedResults[index] && resultRefs.current[index]) {
-          const { scrollHeight, clientHeight } = resultRefs.current[index];
+          const { scrollHeight, clientHeight, scrollTop } = resultRefs.current[index];
           newScrollableResults[index] = scrollHeight > clientHeight;
+          newHasScrolled[index] = scrollTop > 0;
         }
       });
       setScrollableResults(newScrollableResults);
+      setHasScrolled(newHasScrolled);
     };
 
     const handleScroll = index => {
-      setHasScrolled(prev => ({ ...prev, [index]: true }));
+      const { scrollTop, scrollHeight, clientHeight } = resultRefs.current[index];
+      setHasScrolled(prev => ({
+        ...prev,
+        [index]: scrollTop > 0 || scrollHeight <= clientHeight,
+      }));
     };
 
     Object.keys(expandedResults).forEach(index => {
@@ -69,8 +78,6 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
       ...prev,
       [index]: !prev[index],
     }));
-
-    // Reset hasScrolled state when toggling expansion
     setHasScrolled(prev => ({ ...prev, [index]: false }));
   };
 
@@ -96,11 +103,9 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
       switch (data.status) {
         case 'NotStarted':
         case 'Running':
-          // Continue checking status after a delay
-          setTimeout(checkTranscriptionStatus, 10000); // Check every 10 seconds
+          setTimeout(checkTranscriptionStatus, 10000);
           break;
         case 'Succeeded':
-          // Fetch results when the transcription is complete
           await fetchTranscriptionResults();
           break;
         case 'Failed':
@@ -122,7 +127,6 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
     setIsLoading(true);
     setError(null);
     try {
-      // Step 1: Get the list of result files
       const filesResponse = await fetch(`${transcriptionUrl}/files`, {
         headers: {
           'Ocp-Apim-Subscription-Key': import.meta.env.VITE_SPEECH_KEY,
@@ -133,7 +137,6 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
       }
       const filesData = await filesResponse.json();
 
-      // Step 2: Handle pagination if necessary
       let allFiles = filesData.values;
       let nextLink = filesData.nextLink;
       while (nextLink) {
@@ -150,11 +153,9 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
         nextLink = nextData.nextLink;
       }
 
-      // Step 3: Filter for transcription files and the report file
       const transcriptionFiles = allFiles.filter(file => file.kind === 'Transcription');
       const reportFile = allFiles.find(file => file.kind === 'TranscriptionReport');
 
-      // Step 4: Fetch content for each transcription file and the report
       const results = await Promise.all(
         transcriptionFiles.map(async file => {
           const contentResponse = await fetch(file.links.contentUrl, {
@@ -170,7 +171,6 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
         })
       );
 
-      // Fetch report content
       if (reportFile) {
         const reportResponse = await fetch(reportFile.links.contentUrl, {
           headers: {
@@ -237,7 +237,11 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
     setRetryAfter(null);
     try {
       console.log('Starting summarisation process');
-      const response = await axios.post('http://localhost:3000/api/summarise', { transcriptionResults });
+
+      const response = await apiClient.post('/api/summarise', {
+        transcriptionResults: transcriptionResults,
+        summaryType: summaryType,
+      });
       console.log('Summarisation completed');
       onSummaryGenerated(response.data.summary.trim());
     } catch (error) {
@@ -274,7 +278,9 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
     <div className='bg-white shadow-md rounded-lg p-6'>
       <h2 className='text-2xl font-semibold text-indigo-700 mb-4 flex items-center'>
         <FileText className='mr-2' />
-        {transcriptionUrl ? 'Transcription Results' : 'Placeholder Transcription'}
+        {transcriptionUrl
+          ? 'Transcription Results'
+          : `${summaryType === 'legal' ? 'Legal' : 'Meeting'} Placeholder Transcription`}
       </h2>
 
       {isLoading ? (
@@ -324,6 +330,33 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
 
       {transcriptionResults.length > 0 && !isLoading && !error && (
         <div className='mt-4'>
+          <div className='mb-4'>
+            <h3 className='text-lg font-semibold text-indigo-700 mb-2'>Select Summary Type:</h3>
+            <div className='flex space-x-4'>
+              <label className='inline-flex items-center'>
+                <input
+                  type='radio'
+                  className='form-radio text-indigo-600'
+                  name='summaryType'
+                  value='legal'
+                  checked={summaryType === 'legal'}
+                  readOnly
+                />
+                <span className='ml-2'>Legal Hearing</span>
+              </label>
+              <label className='inline-flex items-center'>
+                <input
+                  type='radio'
+                  className='form-radio text-indigo-600'
+                  name='summaryType'
+                  value='meeting'
+                  checked={summaryType === 'meeting'}
+                  readOnly
+                />
+                <span className='ml-2'>Meeting Minutes</span>
+              </label>
+            </div>
+          </div>
           <button
             onClick={handleSummarise}
             disabled={isSummarising || retryAfter}
@@ -335,7 +368,9 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated }) => {
             ) : (
               <Lightbulb className='mr-2' size={18} />
             )}
-            {isSummarising ? 'Summarising...' : 'Summarise Transcriptions'}
+            {isSummarising
+              ? 'Summarising...'
+              : `Summarise ${summaryType === 'legal' ? 'Legal Hearing' : 'Meeting Minutes'}`}
           </button>
           {summarisationError && (
             <p className='text-red-600 mt-2 flex items-center'>

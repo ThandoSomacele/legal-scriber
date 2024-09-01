@@ -5,11 +5,12 @@
   "proxy": "http://localhost:3000",
   "type": "module",
   "scripts": {
-    "start": "nodemon server.js",
+    "start": "node server.js",
     "dev": "vite",
     "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "server": "node server.js",
+    "dev:server": "nodemon server.js"
   },
   "dependencies": {
     "@azure/core-auth": "^1.7.2",

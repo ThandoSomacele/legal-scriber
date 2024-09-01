@@ -12,19 +12,30 @@ import axios from 'axios';
 import axiosRetry from 'axios-retry';
 import { EventEmitter } from 'events';
 import { AzureOpenAI } from 'openai';
-import modelContent from './src/lib/modelContent.js';
+import legalModelContent from './src/lib/legalModelContent.js';
+import meetingMinutesModelContent from './src/lib/meetingMinutesModelContent.js';
+import config from './config';
 
 EventEmitter.defaultMaxListeners = 15;
 
 dotenv.config();
 
 const app = express();
+
 const port = 3000;
 
 // Set a reasonable size limit for JSON payloads
 app.use(express.json({ limit: '10mb' })); // Increased from default, but still secure
 
-app.use(cors());
+// Set a reasonable size limit for JSON payloads
+app.use(express.json({ limit: '10mb' })); // Increased from default, but still secure
+
+app.use(
+  cors({
+    origin: config.frontendUrl,
+    credentials: true,
+  })
+);
 
 // Configure multer for handling file uploads
 const storage = multer.memoryStorage();
@@ -66,7 +77,7 @@ const client = new AzureOpenAI({
   apiVersion: '2024-04-01-preview',
 });
 
-async function summariseWithRetry(transcriptionResults, maxRetries = 5) {
+async function summariseWithRetry(transcriptionResults, summaryType, maxRetries = 5) {
   const maxInputLength = 120000; // Slightly less than the 128,000 max to allow for some buffer
   let fullSummary = '';
 
@@ -83,6 +94,9 @@ async function summariseWithRetry(transcriptionResults, maxRetries = 5) {
 
   console.log(`Processing ${chunks.length} chunks for summarisation`);
 
+  // Select the appropriate modelContent based on summaryType
+  const selectedModelContent = summaryType === 'legal' ? legalModelContent : meetingMinutesModelContent;
+
   for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
     const chunk = chunks[chunkIndex];
     for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -91,13 +105,17 @@ async function summariseWithRetry(transcriptionResults, maxRetries = 5) {
 
         const prompt =
           chunkIndex === 0
-            ? `Please summarise the following legal transcription:\n\n${chunk}`
-            : `Please continue summarising the legal transcription. Here's the next part:\n\n${chunk}`;
+            ? `Please summarise the following ${
+                summaryType === 'legal' ? 'legal transcription' : 'meeting minutes'
+              }:\n\n${chunk}`
+            : `Please continue summarising the ${
+                summaryType === 'legal' ? 'legal transcription' : 'meeting minutes'
+              }. Here's the next part:\n\n${chunk}`;
 
         const result = await client.chat.completions.create({
           model: 'gpt-4o', // Make sure this matches your deployment name
           messages: [
-            { role: 'system', content: modelContent },
+            { role: 'system', content: selectedModelContent },
             { role: 'user', content: prompt },
           ],
           max_tokens: 4096,
@@ -133,26 +151,11 @@ async function summariseWithRetry(transcriptionResults, maxRetries = 5) {
   return fullSummary.trim();
 }
 
-// async function testAzureOpenAI() {
-//   try {
-//     const result = await client.chat.completions.create({
-//       model: 'gpt-4o',
-//       messages: [{ role: 'user', content: 'Say hello' }],
-//       max_tokens: 128,
-//     });
-//     console.log('Test response:', JSON.stringify(result, null, 2));
-//   } catch (error) {
-//     console.error('Test error:', JSON.stringify(error, null, 2));
-//   }
-// }
-
-// // Call this function before your main logic
-// await testAzureOpenAI();
-
 app.post('/upload-and-transcribe', upload.array('files'), async (req, res) => {
   console.log('Starting file upload process...');
   try {
     const uploadedFiles = [];
+    const summaryType = req.body.summaryType || 'legal'; // Default to 'legal' if not provided
 
     for (const file of req.files) {
       const blobName = `${Date.now()}-${file.originalname}`;
@@ -169,13 +172,13 @@ app.post('/upload-and-transcribe', upload.array('files'), async (req, res) => {
     const requestBody = {
       contentUrls: uploadedFiles,
       properties: {
-        diarizationEnabled: false,
+        diarizationEnabled: true,
         wordLevelTimestampsEnabled: true,
         punctuationMode: 'DictatedAndAutomatic',
         profanityFilterMode: 'Masked',
       },
       locale: 'en-GB',
-      displayName: 'Batch transcription',
+      displayName: `Transcription_${summaryType}_${Date.now()}`, // Include summaryType in the display name
     };
 
     console.log('Sending transcription request to Azure...');
@@ -188,7 +191,12 @@ app.post('/upload-and-transcribe', upload.array('files'), async (req, res) => {
     });
 
     console.log('Transcription request successful');
-    res.json({ transcriptionUrl: transcriptionResponse.data.self });
+
+    // Store the summaryType along with the transcriptionUrl in the response
+    res.json({
+      transcriptionUrl: transcriptionResponse.data.self,
+      summaryType: summaryType,
+    });
   } catch (error) {
     console.error('Error in /upload-and-transcribe endpoint:', error);
     res.status(500).json({ error: 'An error occurred during transcription', details: error.message });
@@ -223,13 +231,17 @@ app.get('/transcription-status', async (req, res) => {
 app.post('/api/summarise', async (req, res) => {
   console.log('Received summarise request');
   try {
-    const { transcriptionResults } = req.body;
+    const { transcriptionResults, summaryType } = req.body;
 
     if (!transcriptionResults || !Array.isArray(transcriptionResults) || transcriptionResults.length === 0) {
       return res.status(400).json({ error: 'Invalid or empty transcription results' });
     }
 
-    const summary = await summariseWithRetry(transcriptionResults);
+    if (!summaryType || !['legal', 'meeting'].includes(summaryType)) {
+      return res.status(400).json({ error: 'Invalid summary type' });
+    }
+
+    const summary = await summariseWithRetry(transcriptionResults, summaryType);
     res.json({ summary });
   } catch (error) {
     console.error('Error generating summary:', error);
@@ -249,6 +261,8 @@ app.post('/api/summarise', async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
+const PORT = process.env.PORT || 3001;
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
