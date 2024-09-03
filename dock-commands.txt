@@ -1,9 +1,0 @@
-Now, you can use these files as follows:
-
-For development:
-Copydocker-compose up
-
-This will automatically use both docker-compose.yml and docker-compose.override.yml.
-
-For production:
-Copydocker-compose -f docker-compose.yml -f docker-compose.prod.yml up
