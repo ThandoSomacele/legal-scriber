@@ -8,6 +8,12 @@ services:
       - '5173:5173'
     volumes:
       - ./src:/app/src
+      - ./server.js:/app/server.js # mount server.js
     environment:
       - NODE_ENV=development
-    command: npm run dev
+      - VITE_API_URL=http://localhost:3000
+    command: npm run docker:dev
+
+networks:
+  default:
+    name: legal-scriber-network

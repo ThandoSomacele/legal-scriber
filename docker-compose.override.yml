@@ -1,7 +1,0 @@
-services:
-  app:
-    environment:
-      - NODE_ENV=development
-    volumes:
-      - ./src:/app/src
-    command: npm run dev # Assuming you have a dev script that uses something like Vite's dev server

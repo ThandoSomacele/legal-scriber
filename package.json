@@ -5,12 +5,10 @@
   "proxy": "http://localhost:3000",
   "type": "module",
   "scripts": {
-    "start": "nodemon server.js",
+    "start": "node server.js",
     "dev": "vite --host",
     "build": "vite build",
-    "docker:dev": "docker compose up",
-    "docker:build": "docker compose build",
-    "docker:prod": "docker compose -f docker-compose.yml -f docker-compose.prod.yml up"
+    "docker:dev": "concurrently \"npm:start\" \"npm:dev\""
   },
   "dependencies": {
     "@azure/core-auth": "^1.7.2",
