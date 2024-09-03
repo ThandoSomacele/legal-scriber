@@ -14,15 +14,13 @@ import { EventEmitter } from 'events';
 import { AzureOpenAI } from 'openai';
 import legalModelContent from './src/lib/legalModelContent.js';
 import meetingMinutesModelContent from './src/lib/meetingMinutesModelContent.js';
-import config from './config';
+import config from './config.js';
 
 EventEmitter.defaultMaxListeners = 15;
 
 dotenv.config();
 
 const app = express();
-
-const port = 3000;
 
 // Set a reasonable size limit for JSON payloads
 app.use(express.json({ limit: '10mb' })); // Increased from default, but still secure
@@ -261,8 +259,16 @@ app.post('/api/summarise', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3001;
+console.log('Starting server.js');
+console.log('Environment:', process.env.NODE_ENV);
+console.log('API URL:', config.apiUrl);
 
-app.listen(PORT, () => {
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'OK' });
+});
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });

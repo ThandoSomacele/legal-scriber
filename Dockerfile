@@ -1,23 +1,22 @@
-# Use an official Node runtime as the base image
-FROM node:20
-
-# Set the working directory in the container
-WORKDIR /usr/src/app
-
-# Copy package.json and package-lock.json
+# Build stage
+FROM node:20 AS build
+WORKDIR /app
 COPY package*.json ./
-
-# Install dependencies
-RUN npm install
-
-# Copy the rest of the application code
+RUN npm ci
 COPY . .
-
-# Build the application
 RUN npm run build
 
-# Expose the port the app runs on
-EXPOSE 3000
+# Development stage
+FROM node:20-alpine
+WORKDIR /app
+COPY --from=build /app/dist ./dist
+COPY package*.json ./
+COPY server.js ./
+COPY .env ./
+RUN npm ci --only=production
+RUN npm install concurrently nodemon --save-dev
 
-# Define the command to run the app
-CMD ["npm", "start"]
+EXPOSE 3000
+EXPOSE 5173
+
+CMD ["npm", "run", "docker:dev"]

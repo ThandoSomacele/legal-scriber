@@ -56,29 +56,68 @@ Legal Scriber is a React-based web application designed to assist legal professi
 ## Project Structure
 
 ```
-legal-scriber/
+Legal Scriber Project
+│
 ├── src/
 │   ├── components/
-│   │   ├── MultiAudioUploader.jsx
+│   │   ├── layouts/
+│   │   │   ├── Header.jsx
+│   │   │   ├── Footer.jsx
+│   │   │   └── Home.jsx
+│   │   ├── HeroSection.jsx
+│   │   ├── FeaturesSection.jsx
+│   │   ├── PricingSection.jsx
+│   │   ├── AboutUsSection.jsx
+│   │   ├── ContactUsSection.jsx
+│   │   ├── Dashboard.jsx
+│   │   ├── Transcriptions.jsx
+│   │   ├── Summaries.jsx
 │   │   ├── TranscriptionDisplay.jsx
 │   │   ├── SummaryEditor.jsx
+│   │   ├── MultiAudioUploader.jsx
+│   │   ├── PrivacyPolicy.jsx
+│   │   ├── TermsAndConditions.jsx
 │   │   ├── MarkdownCheatsheet.jsx
-│   │   └── layouts/
-│   │       └── Header.jsx
+│   │   └── Button.jsx
+│   ├── contexts/
+│   │   └── ApiContext.js
+│   ├── lib/
+│   │   ├── legalModelContent.js
+│   │   ├── meetingMinutesModelContent.js
+│   │   ├── legalPlaceHolderTranscription.js
+│   │   └── excomeetingPlaceHolderTranscription.js
 │   ├── styles/
+│   │   ├── index.css
 │   │   └── SummaryEditor.css
 │   ├── App.jsx
-│   ├── App.css
-│   ├── main.jsx
-│   └── index.css
+│   └── main.jsx
+│
 ├── public/
+│   └── [static assets]
+│
+├── .github/
+│   └── workflows/
+│       └── azure-deploy.yml
+│
+├── server.js
+|
+├── node_modules/
+│
+├── dist/
+│
 ├── .env
-├── index.html
+├── .env.example
+├── .gitignore
+├── .dockerignore
+├── Dockerfile
+├── docker-compose.yml
 ├── package.json
+├── package-lock.json
+├── README.md
 ├── vite.config.js
 ├── tailwind.config.js
 ├── postcss.config.js
-└── README.md
+└── eslintrc.js
 ```
 
 ## Built With
