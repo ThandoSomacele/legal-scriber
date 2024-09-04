@@ -83,8 +83,8 @@ Legal Scriber Project
 │   │   └── ApiContext.js
 │   ├── lib/
 │   │   ├── legalModelContent.js
-│   │   ├── meetingMinutesModelContent.js
-│   │   ├── legalPlaceHolderTranscription.js
+│   │   ├── standardMeetingModelContent.js
+│   │   ├── legaHearinglPlaceHolderTranscription.js
 │   │   └── excomeetingPlaceHolderTranscription.js
 │   ├── styles/
 │   │   ├── index.css

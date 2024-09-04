@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FileText, Loader, ChevronDown, ChevronUp, AlertCircle, FileBarChart, Lightbulb } from 'lucide-react';
 import apiClient from '../apiClient';
-import { getLegalPlaceholderTranscription } from '../lib/legalPlaceHolderTranscription';
+import { getLegalPlaceholderTranscription } from '../lib/legalHearingPlaceHolderTranscription';
 import { getExcoMeetingPlaceholderTranscription } from '../lib/excomeetingPlaceHolderTranscription';
 
-const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated, summaryType }) => {
+const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated, meetingType }) => {
   const [transcriptionResults, setTranscriptionResults] = useState([]);
   const [transcriptionReport, setTranscriptionReport] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -24,11 +24,11 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated, summaryTyp
       checkTranscriptionStatus();
     } else {
       const placeholderData =
-        summaryType === 'legal' ? getLegalPlaceholderTranscription() : getExcoMeetingPlaceholderTranscription();
+        meetingType === 'legal' ? getLegalPlaceholderTranscription() : getExcoMeetingPlaceholderTranscription();
       setTranscriptionResults(placeholderData);
       setTranscriptionStatus('Completed');
     }
-  }, [transcriptionUrl, summaryType]);
+  }, [transcriptionUrl, meetingType]);
 
   useEffect(() => {
     const checkScrollable = () => {
@@ -239,7 +239,7 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated, summaryTyp
 
       const response = await apiClient.post('/api/summarise', {
         transcriptionResults: transcriptionResults,
-        summaryType: summaryType,
+        meetingType: meetingType,
       });
       console.log('Summarisation completed');
       onSummaryGenerated(response.data.summary.trim());
@@ -279,7 +279,7 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated, summaryTyp
         <FileText className='mr-2' />
         {transcriptionUrl
           ? 'Transcription Results'
-          : `${summaryType === 'legal' ? 'Legal' : 'Meeting'} Placeholder Transcription`}
+          : `${meetingType === 'legal' ? 'Legal' : 'Meeting'} Placeholder Transcription`}
       </h2>
 
       {isLoading ? (
@@ -293,7 +293,9 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated, summaryTyp
         </div>
       ) : (
         <div className='space-y-4'>
-          <p className='text-indigo-600 font-semibold'>Status: {transcriptionStatus}</p>
+          <p className='text-indigo-600 font-semibold'>
+            Status: <span className=' text-black'>{transcriptionStatus}</span>
+          </p>
           {renderTranscriptionReport()}
           {transcriptionResults.map((result, index) => (
             <div key={index} className='border border-indigo-200 rounded-lg p-4'>
@@ -330,29 +332,34 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated, summaryTyp
       {transcriptionResults.length > 0 && !isLoading && !error && (
         <div className='mt-4'>
           <div className='mb-4'>
-            <h3 className='text-lg font-semibold text-indigo-700 mb-2'>Select Summary Type:</h3>
+            <p className='text-indigo-600 font-semibold'>
+              Selected Summary Type:{' '}
+              <span className=' text-black'>{meetingType === 'legal' ? 'Legal Hearing' : 'Standard Meeting'}</span>
+            </p>
             <div className='flex space-x-4'>
-              <label className='inline-flex items-center'>
+              <label className='inline-flex items-center sr-only'>
                 <input
+                  hidden
                   type='radio'
                   className='form-radio text-indigo-600'
-                  name='summaryType'
+                  name='meetingType'
                   value='legal'
-                  checked={summaryType === 'legal'}
+                  checked={meetingType === 'legal'}
                   readOnly
                 />
                 <span className='ml-2'>Legal Hearing</span>
               </label>
-              <label className='inline-flex items-center'>
+              <label className='inline-flex items-center sr-only'>
                 <input
+                  hidden
                   type='radio'
                   className='form-radio text-indigo-600'
-                  name='summaryType'
+                  name='meetingType'
                   value='meeting'
-                  checked={summaryType === 'meeting'}
+                  checked={meetingType === 'meeting'}
                   readOnly
                 />
-                <span className='ml-2'>Meeting Minutes</span>
+                <span className='ml-2'>Standard Meeting</span>
               </label>
             </div>
           </div>
@@ -369,7 +376,7 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated, summaryTyp
             )}
             {isSummarising
               ? 'Summarising...'
-              : `Summarise ${summaryType === 'legal' ? 'Legal Hearing' : 'Meeting Minutes'}`}
+              : `Summarise ${meetingType === 'legal' ? 'Legal Hearing' : 'Standard Meeting'}`}
           </button>
           {summarisationError && (
             <p className='text-red-600 mt-2 flex items-center'>
