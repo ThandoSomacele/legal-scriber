@@ -12,6 +12,7 @@ import axios from 'axios';
 import axiosRetry from 'axios-retry';
 import { EventEmitter } from 'events';
 import { AzureOpenAI } from 'openai';
+import { parseString } from 'xml2js';
 import legalModelContent from './src/lib/legalModelContent.js';
 import standardMeetingModelContent from './src/lib/standardMeetingModelContent.js';
 import config from './config.js';
@@ -214,9 +215,22 @@ app.get('/transcription-status', async (req, res) => {
       },
     });
 
-    console.log('Transcription status response:', JSON.stringify(statusResponse.data, null, 2));
-
-    res.json({ status: statusResponse.data.status });
+    // Check if the response is XML
+    if (statusResponse.headers['content-type'].includes('application/xml')) {
+      parseString(statusResponse.data, (err, result) => {
+        if (err) {
+          console.error('Error parsing XML:', err);
+          return res.status(500).json({ error: 'Error parsing XML response' });
+        }
+        const status = result.transcription.status[0];
+        console.log('Transcription status:', status);
+        res.json({ status });
+      });
+    } else {
+      // Assume JSON response
+      console.log('Transcription status response:', JSON.stringify(statusResponse.data, null, 2));
+      res.json({ status: statusResponse.data.status });
+    }
   } catch (error) {
     console.error('Error in /transcription-status endpoint:', error);
     res.status(500).json({ error: 'An error occurred while checking transcription status', details: error.message });

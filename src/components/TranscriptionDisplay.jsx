@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FileText, Loader, ChevronDown, ChevronUp, AlertCircle, FileBarChart, Lightbulb } from 'lucide-react';
 import apiClient from '../apiClient';
 import { getLegalPlaceholderTranscription } from '../lib/legalHearingPlaceHolderTranscription';
@@ -18,115 +18,14 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated, meetingTyp
   const [hasScrolled, setHasScrolled] = useState({});
 
   const resultRefs = useRef({});
+  const transcriptionUrlRef = useRef(transcriptionUrl);
+  const statusCheckIntervalRef = useRef(null);
 
-  useEffect(() => {
-    if (transcriptionUrl) {
-      checkTranscriptionStatus();
-    } else {
-      const placeholderData =
-        meetingType === 'legal' ? getLegalPlaceholderTranscription() : getExcoMeetingPlaceholderTranscription();
-      setTranscriptionResults(placeholderData);
-      setTranscriptionStatus('Completed');
-    }
-  }, [transcriptionUrl, meetingType]);
-
-  useEffect(() => {
-    const checkScrollable = () => {
-      const newScrollableResults = {};
-      const newHasScrolled = {};
-      Object.keys(expandedResults).forEach(index => {
-        if (expandedResults[index] && resultRefs.current[index]) {
-          const { scrollHeight, clientHeight, scrollTop } = resultRefs.current[index];
-          newScrollableResults[index] = scrollHeight > clientHeight;
-          newHasScrolled[index] = scrollTop > 0;
-        }
-      });
-      setScrollableResults(newScrollableResults);
-      setHasScrolled(newHasScrolled);
-    };
-
-    const handleScroll = index => {
-      const { scrollTop, scrollHeight, clientHeight } = resultRefs.current[index];
-      setHasScrolled(prev => ({
-        ...prev,
-        [index]: scrollTop > 0 || scrollHeight <= clientHeight,
-      }));
-    };
-
-    Object.keys(expandedResults).forEach(index => {
-      if (expandedResults[index] && resultRefs.current[index]) {
-        resultRefs.current[index].addEventListener('scroll', () => handleScroll(index));
-      }
-    });
-
-    checkScrollable();
-    window.addEventListener('resize', checkScrollable);
-
-    return () => {
-      window.removeEventListener('resize', checkScrollable);
-      Object.keys(expandedResults).forEach(index => {
-        if (resultRefs.current[index]) {
-          resultRefs.current[index].removeEventListener('scroll', () => handleScroll(index));
-        }
-      });
-    };
-  }, [expandedResults, transcriptionResults]);
-
-  const toggleResultExpansion = index => {
-    setExpandedResults(prev => ({
-      ...prev,
-      [index]: !prev[index],
-    }));
-    setHasScrolled(prev => ({ ...prev, [index]: false }));
-  };
-
-  const checkTranscriptionStatus = async () => {
+  const fetchTranscriptionResults = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(
-        `/api/transcription-status?transcriptionUrl=${encodeURIComponent(transcriptionUrl)}`
-      );
-      const text = await response.text();
-      console.log('Raw response:', text);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}, message: ${text}`);
-      }
-
-      const data = JSON.parse(text);
-      console.log('Parsed data:', data);
-
-      setTranscriptionStatus(data.status);
-
-      switch (data.status) {
-        case 'NotStarted':
-        case 'Running':
-          setTimeout(checkTranscriptionStatus, 10000);
-          break;
-        case 'Succeeded':
-          await fetchTranscriptionResults();
-          break;
-        case 'Failed':
-        case 'Cancelled':
-          setError(`Transcription ${data.status.toLowerCase()}. Please try again.`);
-          break;
-        default:
-          console.warn(`Unknown transcription status: ${data.status}`);
-      }
-    } catch (error) {
-      console.error('Error checking transcription status:', error);
-      setError(`Failed to check transcription status: ${error.message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchTranscriptionResults = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const filesResponse = await fetch(`${transcriptionUrl}/files`, {
+      const filesResponse = await fetch(`${transcriptionUrlRef.current}/files`, {
         headers: {
           'Ocp-Apim-Subscription-Key': import.meta.env.VITE_SPEECH_KEY,
         },
@@ -190,6 +89,103 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated, meetingTyp
     } finally {
       setIsLoading(false);
     }
+  }, []);
+
+  const checkTranscriptionStatus = useCallback(async () => {
+    if (!transcriptionUrlRef.current) return;
+
+    try {
+      const response = await apiClient.get('/transcription-status', {
+        params: { transcriptionUrl: transcriptionUrlRef.current },
+      });
+
+      console.log('Status response:', response.data);
+
+      const newStatus = response.data.status;
+      setTranscriptionStatus(newStatus);
+
+      if (newStatus === 'Succeeded') {
+        await fetchTranscriptionResults();
+        clearInterval(statusCheckIntervalRef.current);
+      } else if (newStatus === 'Failed' || newStatus === 'Cancelled') {
+        setError(`Transcription ${newStatus.toLowerCase()}. Please try again.`);
+        clearInterval(statusCheckIntervalRef.current);
+      }
+    } catch (error) {
+      console.error('Error checking transcription status:', error);
+      setError(`Failed to check transcription status: ${error.message}`);
+      clearInterval(statusCheckIntervalRef.current);
+    }
+  }, [fetchTranscriptionResults]);
+
+  useEffect(() => {
+    transcriptionUrlRef.current = transcriptionUrl;
+
+    if (transcriptionUrl) {
+      checkTranscriptionStatus();
+      statusCheckIntervalRef.current = setInterval(checkTranscriptionStatus, 10000);
+    } else {
+      const placeholderData =
+        meetingType === 'legal' ? getLegalPlaceholderTranscription() : getExcoMeetingPlaceholderTranscription();
+      setTranscriptionResults(placeholderData);
+      setTranscriptionStatus('Completed');
+    }
+
+    return () => {
+      if (statusCheckIntervalRef.current) {
+        clearInterval(statusCheckIntervalRef.current);
+      }
+    };
+  }, [transcriptionUrl, meetingType, checkTranscriptionStatus]);
+
+  useEffect(() => {
+    const checkScrollable = () => {
+      const newScrollableResults = {};
+      const newHasScrolled = {};
+      Object.keys(expandedResults).forEach(index => {
+        if (expandedResults[index] && resultRefs.current[index]) {
+          const { scrollHeight, clientHeight, scrollTop } = resultRefs.current[index];
+          newScrollableResults[index] = scrollHeight > clientHeight;
+          newHasScrolled[index] = scrollTop > 0;
+        }
+      });
+      setScrollableResults(newScrollableResults);
+      setHasScrolled(newHasScrolled);
+    };
+
+    const handleScroll = index => {
+      const { scrollTop, scrollHeight, clientHeight } = resultRefs.current[index];
+      setHasScrolled(prev => ({
+        ...prev,
+        [index]: scrollTop > 0 || scrollHeight <= clientHeight,
+      }));
+    };
+
+    Object.keys(expandedResults).forEach(index => {
+      if (expandedResults[index] && resultRefs.current[index]) {
+        resultRefs.current[index].addEventListener('scroll', () => handleScroll(index));
+      }
+    });
+
+    checkScrollable();
+    window.addEventListener('resize', checkScrollable);
+
+    return () => {
+      window.removeEventListener('resize', checkScrollable);
+      Object.keys(expandedResults).forEach(index => {
+        if (resultRefs.current[index]) {
+          resultRefs.current[index].removeEventListener('scroll', () => handleScroll(index));
+        }
+      });
+    };
+  }, [expandedResults, transcriptionResults]);
+
+  const toggleResultExpansion = index => {
+    setExpandedResults(prev => ({
+      ...prev,
+      [index]: !prev[index],
+    }));
+    setHasScrolled(prev => ({ ...prev, [index]: false }));
   };
 
   const formatDuration = durationInTicks => {
