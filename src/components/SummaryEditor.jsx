@@ -6,7 +6,7 @@ import { Save, Copy, Check, ChevronDown } from 'lucide-react';
 import './../styles/SummaryEditor.css';
 import MarkdownCheatsheet from './MarkdownCheatsheet';
 
-const SummaryEditor = ({ initialSummary, onSave, summaryType }) => {
+const SummaryEditor = ({ initialSummary, onSave, meetingType }) => {
   const getLegalPlaceholder = () => `# Awaiting Legal Transcription Summary
 
 Your comprehensive legal summary will be displayed here once the transcription and analysis are complete.
@@ -21,9 +21,9 @@ Your comprehensive legal summary will be displayed here once the transcription a
 
 *Please note: This AI-generated summary is intended for informational purposes only and should not be considered as legal advice.*`;
 
-  const getMeetingPlaceholder = () => `# Awaiting Meeting Minutes Summary
+  const getMeetingPlaceholder = () => `# Awaiting Standard Meeting Summary
 
-Your comprehensive meeting minutes summary will be displayed here once the transcription and analysis are complete.
+Your comprehensive standard meeting summary will be displayed here once the transcription and analysis are complete.
 
 ## What to Expect:
 
@@ -36,7 +36,7 @@ Your comprehensive meeting minutes summary will be displayed here once the trans
 
 *Please note: This AI-generated summary is intended to capture the essence of the meeting and may not include every detail discussed.*`;
 
-  const placeholderSummary = summaryType === 'legal' ? getLegalPlaceholder() : getMeetingPlaceholder();
+  const placeholderSummary = meetingType === 'legal' ? getLegalPlaceholder() : getMeetingPlaceholder();
 
   const [summary, setSummary] = useState(initialSummary || placeholderSummary);
   const [isEditing, setIsEditing] = useState(false);
@@ -103,13 +103,13 @@ _Disclaimer: This summary is generated based on AI analysis and may not capture 
 _Disclaimer: This summary is generated based on AI analysis of the meeting transcription. While it aims to capture the key points and decisions, it may not include every detail discussed. Please refer to the full transcription or consult with meeting participants for complete information._
   `;
 
-  const disclaimer = summaryType === 'legal' ? getLegalDisclaimer() : getMeetingDisclaimer();
+  const disclaimer = meetingType === 'legal' ? getLegalDisclaimer() : getMeetingDisclaimer();
 
   return (
     <div className='bg-white shadow-md rounded-lg p-6'>
       <div className='flex justify-between items-center mb-4'>
         <h2 className='text-2xl font-semibold text-indigo-700'>
-          {summaryType === 'legal' ? 'Legal Hearing Summary' : 'Meeting Minutes Summary'}
+          {meetingType === 'legal' ? 'Legal Hearing Summary' : 'Standard Meeting Summary'}
         </h2>
         <div className='flex space-x-2'>
           <button

@@ -12,8 +12,9 @@ import axios from 'axios';
 import axiosRetry from 'axios-retry';
 import { EventEmitter } from 'events';
 import { AzureOpenAI } from 'openai';
+import { parseString } from 'xml2js';
 import legalModelContent from './src/lib/legalModelContent.js';
-import meetingMinutesModelContent from './src/lib/meetingMinutesModelContent.js';
+import standardMeetingModelContent from './src/lib/standardMeetingModelContent.js';
 import config from './config.js';
 
 EventEmitter.defaultMaxListeners = 15;
@@ -75,7 +76,7 @@ const client = new AzureOpenAI({
   apiVersion: '2024-04-01-preview',
 });
 
-async function summariseWithRetry(transcriptionResults, summaryType, maxRetries = 5) {
+async function summariseWithRetry(transcriptionResults, meetingType, maxRetries = 5) {
   const maxInputLength = 120000; // Slightly less than the 128,000 max to allow for some buffer
   let fullSummary = '';
 
@@ -92,8 +93,8 @@ async function summariseWithRetry(transcriptionResults, summaryType, maxRetries 
 
   console.log(`Processing ${chunks.length} chunks for summarisation`);
 
-  // Select the appropriate modelContent based on summaryType
-  const selectedModelContent = summaryType === 'legal' ? legalModelContent : meetingMinutesModelContent;
+  // Select the appropriate modelContent based on meetingType
+  const selectedModelContent = meetingType === 'legal' ? legalModelContent : standardMeetingModelContent;
 
   for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
     const chunk = chunks[chunkIndex];
@@ -104,10 +105,10 @@ async function summariseWithRetry(transcriptionResults, summaryType, maxRetries 
         const prompt =
           chunkIndex === 0
             ? `Please summarise the following ${
-                summaryType === 'legal' ? 'legal transcription' : 'meeting minutes'
+                meetingType === 'legal' ? 'legal transcription' : 'standard meeting'
               }:\n\n${chunk}`
             : `Please continue summarising the ${
-                summaryType === 'legal' ? 'legal transcription' : 'meeting minutes'
+                meetingType === 'legal' ? 'legal transcription' : 'standard meeting'
               }. Here's the next part:\n\n${chunk}`;
 
         const result = await client.chat.completions.create({
@@ -153,7 +154,7 @@ app.post('/upload-and-transcribe', upload.array('files'), async (req, res) => {
   console.log('Starting file upload process...');
   try {
     const uploadedFiles = [];
-    const summaryType = req.body.summaryType || 'legal'; // Default to 'legal' if not provided
+    const meetingType = req.body.meetingType || 'legal'; // Default to 'legal' if not provided
 
     for (const file of req.files) {
       const blobName = `${Date.now()}-${file.originalname}`;
@@ -176,7 +177,7 @@ app.post('/upload-and-transcribe', upload.array('files'), async (req, res) => {
         profanityFilterMode: 'Masked',
       },
       locale: 'en-GB',
-      displayName: `Transcription_${summaryType}_${Date.now()}`, // Include summaryType in the display name
+      displayName: `Transcription_${meetingType}_${Date.now()}`, // Include meetingType in the display name
     };
 
     console.log('Sending transcription request to Azure...');
@@ -190,10 +191,10 @@ app.post('/upload-and-transcribe', upload.array('files'), async (req, res) => {
 
     console.log('Transcription request successful');
 
-    // Store the summaryType along with the transcriptionUrl in the response
+    // Store the meetingType along with the transcriptionUrl in the response
     res.json({
       transcriptionUrl: transcriptionResponse.data.self,
-      summaryType: summaryType,
+      meetingType: meetingType,
     });
   } catch (error) {
     console.error('Error in /upload-and-transcribe endpoint:', error);
@@ -217,9 +218,22 @@ app.get('/transcription-status', async (req, res) => {
       },
     });
 
-    console.log('Transcription status response:', JSON.stringify(statusResponse.data, null, 2));
-
-    res.json({ status: statusResponse.data.status });
+    // Check if the response is XML
+    if (statusResponse.headers['content-type'].includes('application/xml')) {
+      parseString(statusResponse.data, (err, result) => {
+        if (err) {
+          console.error('Error parsing XML:', err);
+          return res.status(500).json({ error: 'Error parsing XML response' });
+        }
+        const status = result.transcription.status[0];
+        console.log('Transcription status:', status);
+        res.json({ status });
+      });
+    } else {
+      // Assume JSON response
+      console.log('Transcription status response:', JSON.stringify(statusResponse.data, null, 2));
+      res.json({ status: statusResponse.data.status });
+    }
   } catch (error) {
     console.error('Error in /transcription-status endpoint:', error);
     res.status(500).json({ error: 'An error occurred while checking transcription status', details: error.message });
@@ -229,17 +243,17 @@ app.get('/transcription-status', async (req, res) => {
 app.post('/api/summarise', async (req, res) => {
   console.log('Received summarise request');
   try {
-    const { transcriptionResults, summaryType } = req.body;
+    const { transcriptionResults, meetingType } = req.body;
 
     if (!transcriptionResults || !Array.isArray(transcriptionResults) || transcriptionResults.length === 0) {
       return res.status(400).json({ error: 'Invalid or empty transcription results' });
     }
 
-    if (!summaryType || !['legal', 'meeting'].includes(summaryType)) {
+    if (!meetingType || !['legal', 'meeting'].includes(meetingType)) {
       return res.status(400).json({ error: 'Invalid summary type' });
     }
 
-    const summary = await summariseWithRetry(transcriptionResults, summaryType);
+    const summary = await summariseWithRetry(transcriptionResults, meetingType);
     res.json({ summary });
   } catch (error) {
     console.error('Error generating summary:', error);

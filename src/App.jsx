@@ -19,11 +19,11 @@ function App() {
   const [transcriptionUrl, setTranscriptionUrl] = useState(null);
   const [summary, setSummary] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(true);
-  const [summaryType, setSummaryType] = useState('legal');
+  const [meetingType, setMeetingType] = useState('legal');
 
   const handleTranscriptionCreated = (url, type) => {
     setTranscriptionUrl(url);
-    setSummaryType(type);
+    setMeetingType(type);
   };
 
   const handleSummaryGenerated = generatedSummary => {
@@ -35,8 +35,8 @@ function App() {
     // Here you can add logic to save the summary to a database or perform other actions
   };
 
-  const handleSummaryTypeChange = type => {
-    setSummaryType(type);
+  const handlemeetingTypeChange = type => {
+    setMeetingType(type);
   };
 
   return (
@@ -53,35 +53,35 @@ function App() {
                 isLoggedIn ? (
                   <div className='flex flex-col space-y-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
                     <div className='bg-white shadow-md rounded-lg p-6'>
-                      <h2 className='text-2xl font-semibold text-indigo-700 mb-4'>Select Session Type</h2>
+                      <h2 className='text-2xl font-semibold text-indigo-700 mb-4'>Select Meeting Type</h2>
                       <div className='flex space-x-4'>
                         <button
-                          onClick={() => handleSummaryTypeChange('legal')}
+                          onClick={() => handlemeetingTypeChange('legal')}
                           className={`px-4 py-2 rounded-md ${
-                            summaryType === 'legal'
+                            meetingType === 'legal'
                               ? 'bg-indigo-600 text-white'
                               : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
                           } transition-colors duration-300`}>
                           Legal Hearing
                         </button>
                         <button
-                          onClick={() => handleSummaryTypeChange('meeting')}
+                          onClick={() => handlemeetingTypeChange('meeting')}
                           className={`px-4 py-2 rounded-md ${
-                            summaryType === 'meeting'
+                            meetingType === 'meeting'
                               ? 'bg-indigo-600 text-white'
                               : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
                           } transition-colors duration-300`}>
-                          Meeting Minutes
+                          Standard Meeting
                         </button>
                       </div>
                     </div>
-                    <MultiAudioUploader onTranscriptionCreated={handleTranscriptionCreated} summaryType={summaryType} />
+                    <MultiAudioUploader onTranscriptionCreated={handleTranscriptionCreated} meetingType={meetingType} />
                     <TranscriptionDisplay
                       transcriptionUrl={transcriptionUrl}
                       onSummaryGenerated={handleSummaryGenerated}
-                      summaryType={summaryType}
+                      meetingType={meetingType}
                     />
-                    <SummaryEditor initialSummary={summary} onSave={handleSaveSummary} summaryType={summaryType} />
+                    <SummaryEditor initialSummary={summary} onSave={handleSaveSummary} meetingType={meetingType} />
                   </div>
                 ) : (
                   <Navigate to='/' replace />

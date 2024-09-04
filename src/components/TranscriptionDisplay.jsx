@@ -1,11 +1,10 @@
-// eslint-disable-next-line no-unused-vars
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FileText, Loader, ChevronDown, ChevronUp, AlertCircle, FileBarChart, Lightbulb } from 'lucide-react';
 import apiClient from '../apiClient';
-import { getLegalPlaceholderTranscription } from '../lib/legalPlaceHolderTranscription';
+import { getLegalPlaceholderTranscription } from '../lib/legalHearingPlaceHolderTranscription';
 import { getExcoMeetingPlaceholderTranscription } from '../lib/excomeetingPlaceHolderTranscription';
 
-const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated, summaryType }) => {
+const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated, meetingType }) => {
   const [transcriptionResults, setTranscriptionResults] = useState([]);
   const [transcriptionReport, setTranscriptionReport] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -19,115 +18,14 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated, summaryTyp
   const [hasScrolled, setHasScrolled] = useState({});
 
   const resultRefs = useRef({});
+  const transcriptionUrlRef = useRef(transcriptionUrl);
+  const statusCheckIntervalRef = useRef(null);
 
-  useEffect(() => {
-    if (transcriptionUrl) {
-      checkTranscriptionStatus();
-    } else {
-      const placeholderData =
-        summaryType === 'legal' ? getLegalPlaceholderTranscription() : getExcoMeetingPlaceholderTranscription();
-      setTranscriptionResults(placeholderData);
-      setTranscriptionStatus('Completed');
-    }
-  }, [transcriptionUrl, summaryType]);
-
-  useEffect(() => {
-    const checkScrollable = () => {
-      const newScrollableResults = {};
-      const newHasScrolled = {};
-      Object.keys(expandedResults).forEach(index => {
-        if (expandedResults[index] && resultRefs.current[index]) {
-          const { scrollHeight, clientHeight, scrollTop } = resultRefs.current[index];
-          newScrollableResults[index] = scrollHeight > clientHeight;
-          newHasScrolled[index] = scrollTop > 0;
-        }
-      });
-      setScrollableResults(newScrollableResults);
-      setHasScrolled(newHasScrolled);
-    };
-
-    const handleScroll = index => {
-      const { scrollTop, scrollHeight, clientHeight } = resultRefs.current[index];
-      setHasScrolled(prev => ({
-        ...prev,
-        [index]: scrollTop > 0 || scrollHeight <= clientHeight,
-      }));
-    };
-
-    Object.keys(expandedResults).forEach(index => {
-      if (expandedResults[index] && resultRefs.current[index]) {
-        resultRefs.current[index].addEventListener('scroll', () => handleScroll(index));
-      }
-    });
-
-    checkScrollable();
-    window.addEventListener('resize', checkScrollable);
-
-    return () => {
-      window.removeEventListener('resize', checkScrollable);
-      Object.keys(expandedResults).forEach(index => {
-        if (resultRefs.current[index]) {
-          resultRefs.current[index].removeEventListener('scroll', () => handleScroll(index));
-        }
-      });
-    };
-  }, [expandedResults, transcriptionResults]);
-
-  const toggleResultExpansion = index => {
-    setExpandedResults(prev => ({
-      ...prev,
-      [index]: !prev[index],
-    }));
-    setHasScrolled(prev => ({ ...prev, [index]: false }));
-  };
-
-  const checkTranscriptionStatus = async () => {
+  const fetchTranscriptionResults = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(
-        `/api/transcription-status?transcriptionUrl=${encodeURIComponent(transcriptionUrl)}`
-      );
-      const text = await response.text();
-      console.log('Raw response:', text);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}, message: ${text}`);
-      }
-
-      const data = JSON.parse(text);
-      console.log('Parsed data:', data);
-
-      setTranscriptionStatus(data.status);
-
-      switch (data.status) {
-        case 'NotStarted':
-        case 'Running':
-          setTimeout(checkTranscriptionStatus, 10000);
-          break;
-        case 'Succeeded':
-          await fetchTranscriptionResults();
-          break;
-        case 'Failed':
-        case 'Cancelled':
-          setError(`Transcription ${data.status.toLowerCase()}. Please try again.`);
-          break;
-        default:
-          console.warn(`Unknown transcription status: ${data.status}`);
-      }
-    } catch (error) {
-      console.error('Error checking transcription status:', error);
-      setError(`Failed to check transcription status: ${error.message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchTranscriptionResults = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const filesResponse = await fetch(`${transcriptionUrl}/files`, {
+      const filesResponse = await fetch(`${transcriptionUrlRef.current}/files`, {
         headers: {
           'Ocp-Apim-Subscription-Key': import.meta.env.VITE_SPEECH_KEY,
         },
@@ -191,6 +89,103 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated, summaryTyp
     } finally {
       setIsLoading(false);
     }
+  }, []);
+
+  const checkTranscriptionStatus = useCallback(async () => {
+    if (!transcriptionUrlRef.current) return;
+
+    try {
+      const response = await apiClient.get('/transcription-status', {
+        params: { transcriptionUrl: transcriptionUrlRef.current },
+      });
+
+      console.log('Status response:', response.data);
+
+      const newStatus = response.data.status;
+      setTranscriptionStatus(newStatus);
+
+      if (newStatus === 'Succeeded') {
+        await fetchTranscriptionResults();
+        clearInterval(statusCheckIntervalRef.current);
+      } else if (newStatus === 'Failed' || newStatus === 'Cancelled') {
+        setError(`Transcription ${newStatus.toLowerCase()}. Please try again.`);
+        clearInterval(statusCheckIntervalRef.current);
+      }
+    } catch (error) {
+      console.error('Error checking transcription status:', error);
+      setError(`Failed to check transcription status: ${error.message}`);
+      clearInterval(statusCheckIntervalRef.current);
+    }
+  }, [fetchTranscriptionResults]);
+
+  useEffect(() => {
+    transcriptionUrlRef.current = transcriptionUrl;
+
+    if (transcriptionUrl) {
+      checkTranscriptionStatus();
+      statusCheckIntervalRef.current = setInterval(checkTranscriptionStatus, 10000);
+    } else {
+      const placeholderData =
+        meetingType === 'legal' ? getLegalPlaceholderTranscription() : getExcoMeetingPlaceholderTranscription();
+      setTranscriptionResults(placeholderData);
+      setTranscriptionStatus('Completed');
+    }
+
+    return () => {
+      if (statusCheckIntervalRef.current) {
+        clearInterval(statusCheckIntervalRef.current);
+      }
+    };
+  }, [transcriptionUrl, meetingType, checkTranscriptionStatus]);
+
+  useEffect(() => {
+    const checkScrollable = () => {
+      const newScrollableResults = {};
+      const newHasScrolled = {};
+      Object.keys(expandedResults).forEach(index => {
+        if (expandedResults[index] && resultRefs.current[index]) {
+          const { scrollHeight, clientHeight, scrollTop } = resultRefs.current[index];
+          newScrollableResults[index] = scrollHeight > clientHeight;
+          newHasScrolled[index] = scrollTop > 0;
+        }
+      });
+      setScrollableResults(newScrollableResults);
+      setHasScrolled(newHasScrolled);
+    };
+
+    const handleScroll = index => {
+      const { scrollTop, scrollHeight, clientHeight } = resultRefs.current[index];
+      setHasScrolled(prev => ({
+        ...prev,
+        [index]: scrollTop > 0 || scrollHeight <= clientHeight,
+      }));
+    };
+
+    Object.keys(expandedResults).forEach(index => {
+      if (expandedResults[index] && resultRefs.current[index]) {
+        resultRefs.current[index].addEventListener('scroll', () => handleScroll(index));
+      }
+    });
+
+    checkScrollable();
+    window.addEventListener('resize', checkScrollable);
+
+    return () => {
+      window.removeEventListener('resize', checkScrollable);
+      Object.keys(expandedResults).forEach(index => {
+        if (resultRefs.current[index]) {
+          resultRefs.current[index].removeEventListener('scroll', () => handleScroll(index));
+        }
+      });
+    };
+  }, [expandedResults, transcriptionResults]);
+
+  const toggleResultExpansion = index => {
+    setExpandedResults(prev => ({
+      ...prev,
+      [index]: !prev[index],
+    }));
+    setHasScrolled(prev => ({ ...prev, [index]: false }));
   };
 
   const formatDuration = durationInTicks => {
@@ -240,7 +235,7 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated, summaryTyp
 
       const response = await apiClient.post('/api/summarise', {
         transcriptionResults: transcriptionResults,
-        summaryType: summaryType,
+        meetingType: meetingType,
       });
       console.log('Summarisation completed');
       onSummaryGenerated(response.data.summary.trim());
@@ -280,7 +275,7 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated, summaryTyp
         <FileText className='mr-2' />
         {transcriptionUrl
           ? 'Transcription Results'
-          : `${summaryType === 'legal' ? 'Legal' : 'Meeting'} Placeholder Transcription`}
+          : `${meetingType === 'legal' ? 'Legal' : 'Meeting'} Placeholder Transcription`}
       </h2>
 
       {isLoading ? (
@@ -294,7 +289,9 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated, summaryTyp
         </div>
       ) : (
         <div className='space-y-4'>
-          <p className='text-indigo-600 font-semibold'>Status: {transcriptionStatus}</p>
+          <p className='text-indigo-600 font-semibold'>
+            Status: <span className=' text-black'>{transcriptionStatus}</span>
+          </p>
           {renderTranscriptionReport()}
           {transcriptionResults.map((result, index) => (
             <div key={index} className='border border-indigo-200 rounded-lg p-4'>
@@ -331,29 +328,34 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated, summaryTyp
       {transcriptionResults.length > 0 && !isLoading && !error && (
         <div className='mt-4'>
           <div className='mb-4'>
-            <h3 className='text-lg font-semibold text-indigo-700 mb-2'>Select Summary Type:</h3>
+            <p className='text-indigo-600 font-semibold'>
+              Selected Summary Type:{' '}
+              <span className=' text-black'>{meetingType === 'legal' ? 'Legal Hearing' : 'Standard Meeting'}</span>
+            </p>
             <div className='flex space-x-4'>
-              <label className='inline-flex items-center'>
+              <label className='inline-flex items-center sr-only'>
                 <input
+                  hidden
                   type='radio'
                   className='form-radio text-indigo-600'
-                  name='summaryType'
+                  name='meetingType'
                   value='legal'
-                  checked={summaryType === 'legal'}
+                  checked={meetingType === 'legal'}
                   readOnly
                 />
                 <span className='ml-2'>Legal Hearing</span>
               </label>
-              <label className='inline-flex items-center'>
+              <label className='inline-flex items-center sr-only'>
                 <input
+                  hidden
                   type='radio'
                   className='form-radio text-indigo-600'
-                  name='summaryType'
+                  name='meetingType'
                   value='meeting'
-                  checked={summaryType === 'meeting'}
+                  checked={meetingType === 'meeting'}
                   readOnly
                 />
-                <span className='ml-2'>Meeting Minutes</span>
+                <span className='ml-2'>Standard Meeting</span>
               </label>
             </div>
           </div>
@@ -370,7 +372,7 @@ const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated, summaryTyp
             )}
             {isSummarising
               ? 'Summarising...'
-              : `Summarise ${summaryType === 'legal' ? 'Legal Hearing' : 'Meeting Minutes'}`}
+              : `Summarise ${meetingType === 'legal' ? 'Legal Hearing' : 'Standard Meeting'}`}
           </button>
           {summarisationError && (
             <p className='text-red-600 mt-2 flex items-center'>

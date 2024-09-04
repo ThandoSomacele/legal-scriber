@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Upload, X, Loader, RefreshCw, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import apiClient from '../apiClient';
 
-const MultiAudioUploaderForm = ({ onTranscriptionCreated, summaryType }) => {
+const MultiAudioUploaderForm = ({ onTranscriptionCreated, meetingType }) => {
   const [audioFiles, setAudioFiles] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [transcriptionStatus, setTranscriptionStatus] = useState(null);
@@ -26,7 +26,7 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated, summaryType }) => {
   const uploadAndTranscribe = async files => {
     const formData = new FormData();
     files.forEach(file => formData.append('files', file));
-    formData.append('summaryType', summaryType);
+    formData.append('meetingType', meetingType);
 
     try {
       const response = await apiClient.post('/upload-and-transcribe', formData, {
@@ -90,12 +90,12 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated, summaryType }) => {
     try {
       const formData = new FormData();
       audioFiles.forEach(file => formData.append('files', file));
-      formData.append('summaryType', summaryType);
+      formData.append('meetingType', meetingType);
 
       const response = await apiClient.post('/upload-and-transcribe', formData);
       setTranscriptionUrl(response.data.transcriptionUrl);
       setTranscriptionStatus('NotStarted');
-      onTranscriptionCreated(response.data.transcriptionUrl, response.data.summaryType);
+      onTranscriptionCreated(response.data.transcriptionUrl, response.data.meetingType);
     } catch (error) {
       console.error('Transcription error:', error);
       setError(`An error occurred during transcription: ${error.message}`);
@@ -124,7 +124,7 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated, summaryType }) => {
   return (
     <form onSubmit={handleSubmit} className='bg-white shadow-md rounded-lg p-6'>
       <h2 className='text-2xl font-bold text-indigo-700 mb-4'>
-        {summaryType === 'legal' ? 'Legal Hearing' : 'Meeting'} Audio Transcription Service
+        {meetingType === 'legal' ? 'Legal Hearing' : 'Meeting'} Audio Transcription Service
       </h2>
 
       <div className='mb-4'>
@@ -134,7 +134,7 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated, summaryType }) => {
           <span className='flex items-center space-x-2'>
             <Upload className='w-5 h-5 sm:w-6 sm:h-6 text-indigo-600' />
             <span className='font-medium text-sm sm:text-base text-indigo-600'>
-              Drop {summaryType === 'legal' ? 'legal hearing' : 'meeting'} audio files here or click to upload
+              Drop {meetingType === 'legal' ? 'legal hearing' : 'meeting'} audio files here or click to upload
             </span>
           </span>
           <input
@@ -176,7 +176,7 @@ const MultiAudioUploaderForm = ({ onTranscriptionCreated, summaryType }) => {
             Transcribing...
           </>
         ) : (
-          `Transcribe ${summaryType === 'legal' ? 'Legal Hearing' : 'Meeting'} Audio`
+          `Transcribe ${meetingType === 'legal' ? 'Legal Hearing' : 'Meeting'} Audio`
         )}
       </button>
 
