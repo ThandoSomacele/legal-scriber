@@ -11,42 +11,41 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: 'ubuntu-latest'
 
     steps:
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v2
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
 
-      - name: Log in to container registry
-        uses: docker/login-action@v2
-        with:
-          registry: https://legalscriber20240904.azurecr.io/
-          username: ${{ secrets.AzureAppService_ContainerUsername_2191d85b1dc040d5bb6cc9d7de56d8ba }}
-          password: ${{ secrets.AzureAppService_ContainerPassword_dc9912272b8e42bdb1b4cccffd21bfe7 }}
+    - name: Log in to registry
+      uses: docker/login-action@v2
+      with:
+        registry: https://legalscriber20240904.azurecr.io/
+        username: ${{ secrets.AzureAppService_ContainerUsername_fb953dcf30ab4fa39f00ef4c4c4f2ff1 }}
+        password: ${{ secrets.AzureAppService_ContainerPassword_3de867071dc04f4d9e6babb167bd3f63 }}
 
-      - name: Build and push container image to registry
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          push: true
-          tags: legalscriber20240904.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_2191d85b1dc040d5bb6cc9d7de56d8ba }}/legalscriber:${{ github.sha }}
-          file: ./Dockerfile
+    - name: Build and push container image to registry
+      uses: docker/build-push-action@v3
+      with:
+        push: true
+        tags: legalscriber20240904.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_fb953dcf30ab4fa39f00ef4c4c4f2ff1 }}/legalscriber-image:${{ github.sha }}
+        file: ./Dockerfile
 
-    deploy:
-      runs-on: ubuntu-latest
-      needs: build
-      environment:
-        name: 'production'
-        url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: 'production'
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
 
-      steps:
-        - name: Deploy to Azure Web App
-          id: deploy-to-webapp
-          uses: azure/webapps-deploy@v2
-          with:
-            app-name: 'legalscriber-web-app-container'
-            slot-name: 'production'
-            publish-profile: ${{ secrets.AzureAppService_PublishProfile_ff108bc7c58845de8633b50222a0972f }}
-            images: 'legalscriber20240904.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_2191d85b1dc040d5bb6cc9d7de56d8ba }}/legalscriber:${{ github.sha }}'
+    steps:
+    - name: Deploy to Azure Web App
+      id: deploy-to-webapp
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: 'legalscriber-web-app-container'
+        slot-name: 'production'
+        publish-profile: ${{ secrets.AzureAppService_PublishProfile_375765dacf414274b6e210dae023faad }}
+        images: 'legalscriber20240904.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_fb953dcf30ab4fa39f00ef4c4c4f2ff1 }}/legalscriber-image:${{ github.sha }}'
