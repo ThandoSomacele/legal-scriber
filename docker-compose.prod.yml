@@ -1,8 +1,6 @@
 services:
   prod:
-    build:
-      context: .
-      target: production
+    image: thandosomacele/legalscriber:latest
     ports:
       - '3000:3000'
     environment:
