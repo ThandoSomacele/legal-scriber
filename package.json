@@ -2,13 +2,11 @@
   "name": "legal-scriber",
   "private": true,
   "version": "0.1.0",
-  "proxy": "http://localhost:3000",
   "type": "module",
   "scripts": {
-    "start": "nodemon server.js",
-    "dev": "vite --host",
-    "build": "vite build",
-    "docker:dev": "concurrently \"npm:start\" \"npm:dev\""
+    "start": "node server.js",
+    "dev": "concurrently \"nodemon server.js\" \"vite --host\"",
+    "build": "vite build"
   },
   "dependencies": {
     "@azure/core-auth": "^1.7.2",

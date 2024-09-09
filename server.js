@@ -13,15 +13,31 @@ import axiosRetry from 'axios-retry';
 import { EventEmitter } from 'events';
 import { AzureOpenAI } from 'openai';
 import { parseString } from 'xml2js';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import legalModelContent from './src/lib/legalModelContent.js';
 import standardMeetingModelContent from './src/lib/standardMeetingModelContent.js';
-import config from './config.js';
+import envConfig from './envConfig.js';
+
+// Get __dirname equivalent in ES module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 EventEmitter.defaultMaxListeners = 15;
 
 dotenv.config();
 
 const app = express();
+
+if (process.env.NODE_ENV === 'production') {
+  // Serve static files from the 'dist' folder
+  app.use(express.static(path.join(__dirname, 'dist')));
+
+  // Serve index.html for any route to support client-side routing
+  app.get('*', (req, res) => {
+    res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
+  });
+}
 
 // Set a reasonable size limit for JSON payloads
 app.use(express.json({ limit: '10mb' })); // Increased from default, but still secure
@@ -31,7 +47,7 @@ app.use(express.json({ limit: '10mb' })); // Increased from default, but still s
 
 app.use(
   cors({
-    origin: config.frontendUrl,
+    origin: envConfig.frontendUrl,
     credentials: true,
   })
 );
@@ -275,7 +291,7 @@ app.post('/api/summarise', async (req, res) => {
 
 console.log('Starting server.js');
 console.log('Environment:', process.env.NODE_ENV);
-console.log('API URL:', config.apiUrl);
+console.log('API URL:', envConfig.apiUrl);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK' });
