@@ -1,8 +1,8 @@
 services:
-  app:
+  dev:
     build:
       context: .
-      target: build
+      target: development
     ports:
       - '3000:3000'
       - '5173:5173'
@@ -20,7 +20,7 @@ services:
       - AZURE_OPENAI_ACCOUNT_NAME=${AZURE_OPENAI_ACCOUNT_NAME}
       - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
       - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
-      - NODE_ENV=${NODE_ENV}
+      - NODE_ENV=development
     command: npm run dev
 
 networks:

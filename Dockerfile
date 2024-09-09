@@ -34,6 +34,7 @@ COPY server.js ./
 COPY package*.json ./
 COPY vite.config.js ./
 COPY envConfig.js ./
+COPY . .
 
 # Install only production dependencies
 RUN npm ci --only=production
