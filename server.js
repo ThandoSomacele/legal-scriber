@@ -30,12 +30,13 @@ dotenv.config();
 const app = express();
 
 if (process.env.NODE_ENV === 'production') {
-  // Serve static files from the 'dist' folder
+  // Serve static files from the React app
   app.use(express.static(path.join(__dirname, 'dist')));
 
-  // Serve index.html for any route to support client-side routing
+  // The "catchall" handler: for any request that doesn't
+  // match one above, send back React's index.html file.
   app.get('*', (req, res) => {
-    res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
   });
 }
 
@@ -294,8 +295,15 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK' });
 });
 
-const PORT = process.env.PORT || 3000;
+const port = process.env.PORT || 3000;
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+  console.log(`Serving static files from: ${path.join(__dirname, 'dist')}`);
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('Something broke!');
 });
