@@ -49,4 +49,4 @@ EXPOSE 5000
 CMD ["npm", "start"]
 
 # Default to development stage
-FROM ${TARGET:-development}
+# FROM ${TARGET:-development}
