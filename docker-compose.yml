@@ -19,6 +19,7 @@ services:
       - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
       - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
       - NODE_ENV=development
+      - DOCKER_BUILDKIT=1
     command: npm run dev
 
 networks:
