@@ -48,4 +48,4 @@ jobs:
         app-name: 'legalscriber-web-app-container'
         slot-name: 'production'
         publish-profile: ${{ secrets.AzureAppService_PublishProfile_0624234b6a3846b79dbf01062bef1e23 }}
-        images: 'thandosomacele/legalscriber:${{ github.sha }}'
+        images: '${{ secrets.DOCKERHUB_USERNAME }}/legalscriber:${{ github.sha }}'
