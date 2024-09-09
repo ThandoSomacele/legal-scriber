@@ -30,7 +30,7 @@ jobs:
       uses: docker/build-push-action@v3
       with:
         push: true
-        tags: index.docker.io/${{ secrets.AzureAppService_ContainerUsername_b896d25acc7a40b6bfe07eb0fd7d6898 }}/thandosomacele/legalscriber:${{ github.sha }}
+        tags: 'thandosomacele/legalscriber:${{ github.sha }}'
         file: ./Dockerfile
 
   deploy:
@@ -48,4 +48,4 @@ jobs:
         app-name: 'legalscriber-web-app-container'
         slot-name: 'production'
         publish-profile: ${{ secrets.AzureAppService_PublishProfile_0624234b6a3846b79dbf01062bef1e23 }}
-        images: 'index.docker.io/${{ secrets.AzureAppService_ContainerUsername_b896d25acc7a40b6bfe07eb0fd7d6898 }}/thandosomacele/legalscriber:${{ github.sha }}'
+        images: 'thandosomacele/legalscriber:${{ github.sha }}'
