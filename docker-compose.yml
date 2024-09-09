@@ -1,14 +1,12 @@
 services:
   dev:
-    build:
-      context: .
-      target: development
+    image: thandosomacele/legalscriber:latest
     ports:
       - '3000:3000'
       - '5173:5173'
     volumes:
       - ./src:/app/src
-      - ./server.js:/app/server.js # mount server.js
+      - ./server.js:/app/server.js
     environment:
       - AZURE_STORAGE_CONNECTION_STRING=${AZURE_STORAGE_CONNECTION_STRING}
       - AZURE_STORAGE_ACCOUNT_NAME=${AZURE_STORAGE_ACCOUNT_NAME}
