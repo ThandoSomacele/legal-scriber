@@ -30,7 +30,7 @@ jobs:
       uses: docker/build-push-action@v3
       with:
         push: true
-        tags: '${{ secrets.DOCKERHUB_USERNAME }}/legalscriber:${{ github.sha }}'
+        tags: '${{ secrets.DOCKERHUB_USERNAME }}/legal-scriber-prod:${{ github.sha }}'
         file: ./Dockerfile
         no-cache: true
 
@@ -49,4 +49,4 @@ jobs:
         app-name: 'legalscriber-web-app-container'
         slot-name: 'production'
         publish-profile: ${{ secrets.AzureAppService_PublishProfile_0624234b6a3846b79dbf01062bef1e23 }}
-        images: '${{ secrets.DOCKERHUB_USERNAME }}/legalscriber:${{ github.sha }}'
+        images: '${{ secrets.DOCKERHUB_USERNAME }}/legal-scriber-prod:${{ github.sha }}'
