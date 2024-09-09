@@ -29,8 +29,7 @@ jobs:
     - name: Build and push container image to registry
       uses: docker/build-push-action@v3
       with:
-        push: true
-        tags: index.docker.io/${{ secrets.AzureAppService_ContainerUsername_7d19aa57c3db4b1890699e98faa1c9ba }}/thandosomacele/legalscriber:${{ github.sha }}
+        push: thandosomacele/legalscriber:${{ github.sha }}
         file: ./Dockerfile
 
   deploy:
