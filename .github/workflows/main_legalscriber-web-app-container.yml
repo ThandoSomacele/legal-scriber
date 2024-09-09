@@ -23,14 +23,14 @@ jobs:
       uses: docker/login-action@v2
       with:
         registry: https://index.docker.io/v1/
-        username: ${{ secrets.AzureAppService_ContainerUsername_7d19aa57c3db4b1890699e98faa1c9ba }}
-        password: ${{ secrets.AzureAppService_ContainerPassword_8a899583e6434c10a7f411640095f13e }}
+        username: ${{ secrets.AzureAppService_ContainerUsername_c968067ed8d6460193d6dfba3012c9b1 }}
+        password: ${{ secrets.AzureAppService_ContainerPassword_9ac29a2055d545bc8e1e7773c74d1cab }}
 
     - name: Build and push container image to registry
       uses: docker/build-push-action@v3
       with:
-        push: true  
-        tags: thandosomacele/legalscriber:${{ github.sha }}
+        push: true
+        tags: index.docker.io/${{ secrets.AzureAppService_ContainerUsername_c968067ed8d6460193d6dfba3012c9b1 }}/thandosomacele/legalscriber:${{ github.sha }}
         file: ./Dockerfile
 
   deploy:
@@ -47,5 +47,5 @@ jobs:
       with:
         app-name: 'legalscriber-web-app-container'
         slot-name: 'production'
-        publish-profile: ${{ secrets.AzureAppService_PublishProfile_cca2f30a579c478c91435866bf318b5b }}
-        images: 'index.docker.io/${{ secrets.AzureAppService_ContainerUsername_7d19aa57c3db4b1890699e98faa1c9ba }}/thandosomacele/legalscriber:${{ github.sha }}'
+        publish-profile: ${{ secrets.AzureAppService_PublishProfile_e7f52dd06ff94a59a09586ce33532504 }}
+        images: 'index.docker.io/${{ secrets.AzureAppService_ContainerUsername_c968067ed8d6460193d6dfba3012c9b1 }}/thandosomacele/legalscriber:${{ github.sha }}'
