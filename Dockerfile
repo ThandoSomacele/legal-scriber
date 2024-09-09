@@ -20,7 +20,7 @@ RUN npm install concurrently nodemon --save-dev
 ENV NODE_ENV=development
 
 # Expose necessary ports
-EXPOSE 3000
+EXPOSE 5000
 EXPOSE 5173
 
 # Start both server and Vite to run concurrently
@@ -43,7 +43,7 @@ RUN npm ci --only=production
 ENV NODE_ENV=production
 
 # Expose only the server port for production
-EXPOSE 3000
+EXPOSE 5000
 
 # Start the server
 CMD ["npm", "start"]

@@ -2,7 +2,7 @@ services:
   dev:
     image: thandosomacele/legalscriber:latest
     ports:
-      - '3000:3000'
+      - '5000:5000'
       - '5173:5173'
     volumes:
       - ./src:/app/src
