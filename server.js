@@ -42,9 +42,6 @@ if (process.env.NODE_ENV === 'production') {
 // Set a reasonable size limit for JSON payloads
 app.use(express.json({ limit: '10mb' })); // Increased from default, but still secure
 
-// Set a reasonable size limit for JSON payloads
-app.use(express.json({ limit: '10mb' })); // Increased from default, but still secure
-
 app.use(
   cors({
     origin: envConfig.frontendUrl,

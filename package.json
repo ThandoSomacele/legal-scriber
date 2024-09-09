@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "concurrently \"nodemon server.js\" \"vite --host\"",
-    "build": "vite build"
+    "build": "vite build",
+    "docker:dev": "docker compose build dev && docker compose up dev",
+    "docker:prod": "docker compose -f docker-compose.yml -f docker-compose.prod.yml build prod && docker compose -f docker-compose.yml -f docker-compose.prod.yml up prod"
   },
   "dependencies": {
     "@azure/core-auth": "^1.7.2",

@@ -1,8 +1,14 @@
 services:
-  app:
+  prod:
     build:
       context: .
       target: production
+    ports:
+      - '3000:3000'
     environment:
+      - DOCKER_CUSTOM_IMAGE_NAME=${DOCKER_CUSTOM_IMAGE_NAME}
+      - DOCKER_REGISTRY_SERVER_PASSWORD=${DOCKER_REGISTRY_SERVER_PASSWORD}
+      - DOCKER_REGISTRY_SERVER_URL=${DOCKER_REGISTRY_SERVER_URL}
+      - DOCKER_REGISTRY_SERVER_USERNAME=${DOCKER_REGISTRY_SERVER_USERNAME}
       - NODE_ENV=production
     command: npm start

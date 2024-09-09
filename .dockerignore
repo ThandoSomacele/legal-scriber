@@ -1,7 +1,36 @@
+# Ignore node_modules since we rebuild this inside the container
 node_modules
+
+# Ignore log files
 npm-debug.log
-build
-.dockerignore
-**/.git
-**/.DS_Store
-**/node_modules
+yarn-debug.log
+yarn-error.log
+pnpm-debug.log
+
+# Ignore Vite build output
+dist
+
+# Ignore environment files
+.env
+.env.local
+
+# Ignore any system-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore build artifacts
+build/
+coverage/
+
+# Ignore IDE and editor-specific files
+.vscode/
+.idea/
+
+# Ignore Docker-specific files
+Dockerfile
+docker-compose.yml
+docker-compose.prod.yml
+
+# Ignore git-related files
+.git
+.gitignore
