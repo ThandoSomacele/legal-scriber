@@ -29,7 +29,8 @@ jobs:
     - name: Build and push container image to registry
       uses: docker/build-push-action@v3
       with:
-        push: thandosomacele/legalscriber:${{ github.sha }}
+        push: true  
+        tags: thandosomacele/legalscriber:${{ github.sha }}
         file: ./Dockerfile
 
   deploy:
