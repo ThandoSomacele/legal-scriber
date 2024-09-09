@@ -32,6 +32,7 @@ jobs:
         push: true
         tags: '${{ secrets.DOCKERHUB_USERNAME }}/legalscriber:${{ github.sha }}'
         file: ./Dockerfile
+        no-cache: true
 
   deploy:
     runs-on: ubuntu-latest
