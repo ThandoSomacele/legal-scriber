@@ -18,17 +18,6 @@ const FooterSection = () => {
   ];
 
   const socialLinks = [
-
-    
-          
-            
-    
-
-          
-          Expand Down
-    
-    
-  
     { name: 'Facebook', icon: Facebook, href: 'https://facebook.com' },
     { name: 'Twitter', icon: Twitter, href: 'https://twitter.com' },
     { name: 'Instagram', icon: Instagram, href: 'https://instagram.com' },
