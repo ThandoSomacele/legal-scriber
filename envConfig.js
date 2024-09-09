@@ -1,4 +1,4 @@
-const config = {
+let envConfig = {
   development: {
     apiUrl: 'http://localhost:3000',
     frontendUrl: 'http://localhost:5173',
@@ -9,5 +9,6 @@ const config = {
   },
 };
 
-const env = process.env.NODE_ENV || 'development';
-export default config[env];
+envConfig = envConfig[process.env.NODE_ENV || 'development'];
+
+export default envConfig;

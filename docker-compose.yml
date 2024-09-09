@@ -10,9 +10,18 @@ services:
       - ./src:/app/src
       - ./server.js:/app/server.js # mount server.js
     environment:
-      - NODE_ENV=development
-      - VITE_API_URL=http://localhost:3000
-    command: npm run docker:dev
+      - AZURE_STORAGE_CONNECTION_STRING=${AZURE_STORAGE_CONNECTION_STRING}
+      - AZURE_STORAGE_ACCOUNT_NAME=${AZURE_STORAGE_ACCOUNT_NAME}
+      - AZURE_STORAGE_ACCOUNT_KEY=${AZURE_STORAGE_ACCOUNT_KEY}
+      - VITE_SERVICE_REGION=${VITE_SERVICE_REGION}
+      - VITE_SPEECH_KEY=${VITE_SPEECH_KEY}
+      - VITE_SPEECH_ENDPOINT=${VITE_SPEECH_ENDPOINT}
+      - VITE_AUDIOS_CONTAINER_NAME=${VITE_AUDIOS_CONTAINER_NAME}
+      - AZURE_OPENAI_ACCOUNT_NAME=${AZURE_OPENAI_ACCOUNT_NAME}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+      - NODE_ENV=${NODE_ENV}
+    command: npm run dev
 
 networks:
   default:
