@@ -8,7 +8,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'http://localhost:3001',
         changeOrigin: true,
       },
     },
@@ -16,7 +16,7 @@ export default defineConfig({
   define: {
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
     'process.env.VITE_API_URL': JSON.stringify(
-      process.env.NODE_ENV === 'production' ? 'https://api.legalscriber.co.za' : 'http://localhost:5000'
+      process.env.NODE_ENV === 'production' ? 'https://api.legalscriber.co.za' : 'http://localhost:3001'
     ),
   },
 });

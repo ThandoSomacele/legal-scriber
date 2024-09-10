@@ -295,9 +295,9 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK' });
 });
 
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 3001;
 
-app.listen(port, () => {
+app.listen(port, '0.0.0.0', () => {
   console.log(`Server is running on port ${port}`);
   console.log(`Serving static files from: ${path.join(__dirname, 'dist')}`);
 });
