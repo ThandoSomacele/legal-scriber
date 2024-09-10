@@ -6,16 +6,16 @@ import thandoImg from './../assets/images/founders/thando-somacele.webp';
 const AboutUsSection = () => {
   const founders = [
     // {
-    //   name: 'Sharon Somacele',
+    //   name: 'Sharon',
     //   role: 'Co-founder & Legal Expert',
-    //   image: sharonImg,
+    //   image: '/src/assets/images/founders/sharon-somacele.webp',
     //   description:
     //     'With a distinguished degree in Law, Sharon brings a wealth of legal knowledge to Legal Scriber. Her expertise ensures our AI solutions are grounded in solid legal principles.',
     // },
     {
       name: 'Thando Somacele',
       role: 'Co-founder & Tech Innovator',
-      image: thandoImg,
+      image: '/src/assets/images/founders/thando-somacele.webp',
       description:
         'A seasoned developer with over a decade of coding experience, Thando holds certifications from Microsoft and Udemy. His technical prowess drives the innovative AI behind Legal Scriber.',
     },
@@ -85,12 +85,12 @@ const AboutUsSection = () => {
             </div>
           ) : (
             founders.map(founder => (
-              <div key={founder.name} className='flex flex-col items-center mt-7'>
+              <div key={founder.name} className='flex flex-col items-center mt-12'>
                 <img className='h-40 w-40 rounded-full xl:w-56 xl:h-56' src={founder.image} alt={founder.name} />
-                <div className='mt-6 text-center'>
+                <div className='mt-6 max-w-3xl mx-auto text-center'>
                   <div className='text-lg font-medium text-gray-900'>{founder.name}</div>
                   <div className='text-indigo-600 font-medium'>{founder.role}</div>
-                  <p className='mt-2 text-base text-gray-500 max-w-3xl mx-auto'>{founder.description}</p>
+                  <p className='mt-2 text-base  text-gray-500'>{founder.description}</p>
                 </div>
               </div>
             ))
