@@ -1,20 +1,20 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Facebook, Twitter, Instagram, Link } from 'lucide-react';
-import { Link as RouterLink } from 'react-router-dom';
-import PitchDeck from './../PitchDeck';
-const FooterSection = () => {
-  const [showPitchDeck, setShowPitchDeck] = useState(false);
+import { Link as RouterLink, useLocation } from 'react-router-dom';
+import { Link as ScrollLink } from 'react-scroll';
+
+const Footer = () => {
   const currentYear = new Date().getFullYear();
+  const location = useLocation();
+
   const footerLinks = [
     { name: 'Home', href: '/' },
-    { name: 'Features', href: '/#features' },
-    { name: 'Pricing', href: '/#pricing' },
-    { name: 'About Us', href: '/#about' },
-    { name: 'Contact', href: '/#contact' },
+    { name: 'Features', href: 'features' },
+    { name: 'Pricing', href: 'pricing' },
+    { name: 'About Us', href: 'about' },
+    { name: 'Contact', href: 'contact' },
     { name: 'Privacy Policy', href: '/privacy-policy' },
     { name: 'Terms and Conditions', href: '/terms-and-conditions' },
-    // { name: 'Pitch Deck', href: '/pitch-deck' },
-    // { name: 'Business Model Canvas', href: '/business-model-canvas' },
   ];
 
   const socialLinks = [
@@ -23,6 +23,30 @@ const FooterSection = () => {
     { name: 'Instagram', icon: Instagram, href: 'https://instagram.com' },
     { name: 'LinkedIn', icon: Link, href: 'https://linkedin.com' },
   ];
+
+  // Function to render the appropriate link type
+  const renderLink = item => {
+    if (location.pathname === '/') {
+      return (
+        <ScrollLink
+          to={item.href}
+          spy={true}
+          smooth={true}
+          offset={-70} // Adjust this value based on your header height
+          duration={500}
+          className='text-base text-gray-300 hover:text-white cursor-pointer'>
+          {item.name}
+        </ScrollLink>
+      );
+    } else {
+      return (
+        <RouterLink to={`/#${item.name}`} className='text-base text-gray-300 hover:text-white'>
+          {item.name}
+        </RouterLink>
+      );
+    }
+  };
+
   return (
     <footer className='bg-indigo-800 text-white'>
       <div className='max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8'>
@@ -48,30 +72,16 @@ const FooterSection = () => {
               <div>
                 <h3 className='text-sm font-semibold text-gray-200 tracking-wider uppercase'>Company</h3>
                 <ul role='list' className='mt-4 space-y-4'>
-                  {footerLinks.slice(0, 5).map(item => (
-                    <li key={item.name}>
-                      <RouterLink
-                        to={item.href}
-                        className='text-base text-gray-300 hover:text-white'
-                        onClick={item.onClick}>
-                        {item.name}
-                      </RouterLink>
-                    </li>
+                  {footerLinks.slice(0, 4).map(item => (
+                    <li key={item.name}>{renderLink(item)}</li>
                   ))}
                 </ul>
               </div>
               <div className='mt-12 md:mt-0'>
                 <h3 className='text-sm font-semibold text-gray-200 tracking-wider uppercase'>Legal</h3>
                 <ul role='list' className='mt-4 space-y-4'>
-                  {footerLinks.slice(5).map(item => (
-                    <li key={item.name}>
-                      <RouterLink
-                        to={item.href}
-                        className='text-base text-gray-300 hover:text-white'
-                        onClick={item.onClick}>
-                        {item.name}
-                      </RouterLink>
-                    </li>
+                  {footerLinks.slice(4).map(item => (
+                    <li key={item.name}>{renderLink(item)}</li>
                   ))}
                 </ul>
               </div>
@@ -84,17 +94,8 @@ const FooterSection = () => {
           </p>
         </div>
       </div>
-      {showPitchDeck && (
-        <div className='fixed inset-0 z-50 overflow-auto bg-black bg-opacity-75 flex items-center justify-center'>
-          <div className='relative w-full h-full'>
-            <button onClick={() => setShowPitchDeck(false)} className='absolute top-4 right-4 text-white text-2xl z-50'>
-              &times;
-            </button>
-            <PitchDeck />
-          </div>
-        </div>
-      )}
     </footer>
   );
 };
-export default FooterSection;
+
+export default Footer;

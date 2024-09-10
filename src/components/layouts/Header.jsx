@@ -40,10 +40,10 @@ const Header = ({ isLoggedIn, setIsLoggedIn }) => {
 
   // Navigation items for logged out users (marketing)
   const marketingNavItems = [
-    { name: 'Features', href: '/#features' },
-    { name: 'Pricing', href: '/#pricing' },
-    { name: 'About Us', href: '/#about' },
-    { name: 'Contact', href: '/#contact' },
+    { name: 'Features', href: 'features' },
+    { name: 'Pricing', href: 'pricing' },
+    { name: 'About Us', href: 'about' },
+    { name: 'Contact', href: 'contact' },
   ];
 
   // Navigation items for logged in users
@@ -69,7 +69,7 @@ const Header = ({ isLoggedIn, setIsLoggedIn }) => {
           to={item.href}
           spy={true}
           smooth={true}
-          offset={-70} // Adjust this value based on your header height
+          offset={-70}
           duration={500}
           className={`${linkStyle} cursor-pointer`}>
           {item.name}
@@ -129,6 +129,9 @@ const Header = ({ isLoggedIn, setIsLoggedIn }) => {
                     <RouterLink to='/profile' className='block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100'>
                       Your Profile
                     </RouterLink>
+                    <RouterLink to='/billing' className='block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100'>
+                      Billing
+                    </RouterLink>
                     <RouterLink to='/settings' className='block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100'>
                       Settings
                     </RouterLink>
@@ -181,6 +184,11 @@ const Header = ({ isLoggedIn, setIsLoggedIn }) => {
                   to='/profile'
                   className='block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50'>
                   Your Profile
+                </RouterLink>
+                <RouterLink
+                  to='/billing'
+                  className='block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50'>
+                  Billing
                 </RouterLink>
                 <RouterLink
                   to='/settings'

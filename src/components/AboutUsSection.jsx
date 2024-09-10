@@ -1,21 +1,21 @@
 import React from 'react';
 import { Users, Scale, Award } from 'lucide-react';
+import sharonImg from './../assets/images/founders/sharon-somacele.webp';
+import thandoImg from './../assets/images/founders/thando-somacele.webp';
 
 const AboutUsSection = () => {
   const founders = [
-    {
-      name: 'Sharon',
-      role: 'Co-founder & Legal Expert',
-      image:
-        'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-      description:
-        'With a distinguished degree in Law, Sharon brings a wealth of legal knowledge to Legal Scriber. Her expertise ensures our AI solutions are grounded in solid legal principles.',
-    },
+    // {
+    //   name: 'Sharon Somacele',
+    //   role: 'Co-founder & Legal Expert',
+    //   image: sharonImg,
+    //   description:
+    //     'With a distinguished degree in Law, Sharon brings a wealth of legal knowledge to Legal Scriber. Her expertise ensures our AI solutions are grounded in solid legal principles.',
+    // },
     {
       name: 'Thando Somacele',
       role: 'Co-founder & Tech Innovator',
-      image:
-        'https://images.unsplash.com/photo-1519345182560-3f2917c472ef?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+      image: thandoImg,
       description:
         'A seasoned developer with over a decade of coding experience, Thando holds certifications from Microsoft and Udemy. His technical prowess drives the innovative AI behind Legal Scriber.',
     },
@@ -70,18 +70,31 @@ const AboutUsSection = () => {
             Our founders bring together the perfect blend of legal expertise and technological innovation to lead Legal
             Scriber into the future of AI-powered legal solutions.
           </p>
-          <div className='mt-12 grid grid-cols-1 gap-12 lg:grid-cols-2'>
-            {founders.map(founder => (
-              <div key={founder.name} className='flex flex-col items-center lg:flex-row'>
+          {founders.length > 1 ? (
+            <div className='mt-12 grid grid-cols-1 gap-12 lg:grid-cols-2'>
+              {founders.map(founder => (
+                <div key={founder.name} className='flex flex-col items-center lg:flex-row'>
+                  <img className='h-40 w-40 rounded-full xl:w-56 xl:h-56' src={founder.image} alt={founder.name} />
+                  <div className='mt-6 lg:mt-0 lg:ml-8 text-center lg:text-left'>
+                    <div className='text-lg font-medium text-gray-900'>{founder.name}</div>
+                    <div className='text-indigo-600 font-medium'>{founder.role}</div>
+                    <p className='mt-2 text-base text-gray-500'>{founder.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            founders.map(founder => (
+              <div key={founder.name} className='flex flex-col items-center mt-7'>
                 <img className='h-40 w-40 rounded-full xl:w-56 xl:h-56' src={founder.image} alt={founder.name} />
-                <div className='mt-6 lg:mt-0 lg:ml-8 text-center lg:text-left'>
+                <div className='mt-6 text-center'>
                   <div className='text-lg font-medium text-gray-900'>{founder.name}</div>
                   <div className='text-indigo-600 font-medium'>{founder.role}</div>
-                  <p className='mt-2 text-base text-gray-500'>{founder.description}</p>
+                  <p className='mt-2 text-base text-gray-500 max-w-3xl mx-auto'>{founder.description}</p>
                 </div>
               </div>
-            ))}
-          </div>
+            ))
+          )}
         </div>
       </div>
     </div>
