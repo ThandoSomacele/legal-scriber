@@ -18,6 +18,9 @@ import { fileURLToPath } from 'url';
 import legalModelContent from './src/lib/legalModelContent.js';
 import standardMeetingModelContent from './src/lib/standardMeetingModelContent.js';
 import envConfig from './envConfig.js';
+import dbConnect from './src/db.js';
+
+dbConnect();
 
 // Get __dirname equivalent in ES module
 const __filename = fileURLToPath(import.meta.url);
