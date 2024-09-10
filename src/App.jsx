@@ -14,6 +14,9 @@ import Footer from './components/layouts/Footer';
 import TermsAndConditions from './components/TermsAndConditions';
 import PitchDeck from './components/PitchDeck';
 import BusinessModelCanvas from './components/BusinessModelCanvas';
+import UserProfile from './components/UserProfile';
+import UserSettings from './components/UserSettings';
+import BillingPage from './components/BillingPage';
 
 function App() {
   const [transcriptionUrl, setTranscriptionUrl] = useState(null);
@@ -47,6 +50,9 @@ function App() {
           <Routes>
             <Route path='/' element={<Home />} />
             <Route path='/dashboard' element={isLoggedIn ? <Dashboard /> : <Navigate to='/' replace />} />
+            <Route path='/profile' element={isLoggedIn ? <UserProfile /> : <Navigate to='/' replace />} />
+            <Route path='/settings' element={isLoggedIn ? <UserSettings /> : <Navigate to='/' replace />} />
+            <Route path='/billing' element={isLoggedIn ? <BillingPage /> : <Navigate to='/' replace />} />
             <Route
               path='/transcribe'
               element={
