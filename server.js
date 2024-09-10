@@ -1,4 +1,8 @@
 import express from 'express';
+import dotenv from 'dotenv';
+import authRoutes from './routes/auth.js';
+import transcriptionRoutes from './routes/transcriptions.js';
+import summaryRoutes from './routes/summaries.js';
 import multer from 'multer';
 import {
   BlobServiceClient,
@@ -6,7 +10,6 @@ import {
   generateBlobSASQueryParameters,
   BlobSASPermissions,
 } from '@azure/storage-blob';
-import dotenv from 'dotenv';
 import cors from 'cors';
 import axios from 'axios';
 import axiosRetry from 'axios-retry';
@@ -21,6 +24,11 @@ import envConfig from './envConfig.js';
 import dbConnect from './src/db.js';
 
 dbConnect();
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/transcriptions', transcriptionRoutes);
+app.use('/api/summaries', summaryRoutes);
 
 // Get __dirname equivalent in ES module
 const __filename = fileURLToPath(import.meta.url);

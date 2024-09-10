@@ -1,394 +1,108 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { FileText, Loader, ChevronDown, ChevronUp, AlertCircle, FileBarChart, Lightbulb } from 'lucide-react';
-import apiClient from '../apiClient';
-import { getLegalPlaceholderTranscription } from '../lib/legalHearingPlaceHolderTranscription';
-import { getExcoMeetingPlaceholderTranscription } from '../lib/excomeetingPlaceHolderTranscription';
+// src/components/TranscriptionDisplay.jsx
 
-const TranscriptionDisplay = ({ transcriptionUrl, onSummaryGenerated, meetingType }) => {
-  const [transcriptionResults, setTranscriptionResults] = useState([]);
-  const [transcriptionReport, setTranscriptionReport] = useState(null);
+import React, { useState, useEffect, useCallback } from 'react';
+import { FileText, Loader, ChevronDown, AlertCircle, Lightbulb } from 'lucide-react';
+import apiClient from '../apiClient';
+
+const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType }) => {
+  const [transcription, setTranscription] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [expandedResults, setExpandedResults] = useState({});
-  const [transcriptionStatus, setTranscriptionStatus] = useState('NotStarted');
-  const [isSummarising, setIsSummarising] = useState(false);
-  const [summarisationError, setSummarisationError] = useState(null);
-  const [retryAfter, setRetryAfter] = useState(null);
-  const [scrollableResults, setScrollableResults] = useState({});
-  const [hasScrolled, setHasScrolled] = useState({});
+  const [isSummarizing, setIsSummarizing] = useState(false);
 
-  const resultRefs = useRef({});
-  const transcriptionUrlRef = useRef(transcriptionUrl);
-  const statusCheckIntervalRef = useRef(null);
+  const fetchTranscription = useCallback(async () => {
+    if (!transcriptionId) return;
 
-  const fetchTranscriptionResults = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const filesResponse = await fetch(`${transcriptionUrlRef.current}/files`, {
-        headers: {
-          'Ocp-Apim-Subscription-Key': import.meta.env.VITE_SPEECH_KEY,
-        },
-      });
-      if (!filesResponse.ok) {
-        throw new Error(`HTTP error! status: ${filesResponse.status}`);
-      }
-      const filesData = await filesResponse.json();
-
-      let allFiles = filesData.values;
-      let nextLink = filesData.nextLink;
-      while (nextLink) {
-        const nextResponse = await fetch(nextLink, {
-          headers: {
-            'Ocp-Apim-Subscription-Key': import.meta.env.VITE_SPEECH_KEY,
-          },
-        });
-        if (!nextResponse.ok) {
-          throw new Error(`HTTP error! status: ${nextResponse.status}`);
-        }
-        const nextData = await nextResponse.json();
-        allFiles = [...allFiles, ...nextData.values];
-        nextLink = nextData.nextLink;
-      }
-
-      const transcriptionFiles = allFiles.filter(file => file.kind === 'Transcription');
-      const reportFile = allFiles.find(file => file.kind === 'TranscriptionReport');
-
-      const results = await Promise.all(
-        transcriptionFiles.map(async file => {
-          const contentResponse = await fetch(file.links.contentUrl, {
-            headers: {
-              'Ocp-Apim-Subscription-Key': import.meta.env.VITE_SPEECH_KEY,
-            },
-          });
-          if (!contentResponse.ok) {
-            throw new Error(`HTTP error! status: ${contentResponse.status}`);
-          }
-          const content = await contentResponse.json();
-          return { fileName: file.name, content };
-        })
-      );
-
-      if (reportFile) {
-        const reportResponse = await fetch(reportFile.links.contentUrl, {
-          headers: {
-            'Ocp-Apim-Subscription-Key': import.meta.env.VITE_SPEECH_KEY,
-          },
-        });
-        if (!reportResponse.ok) {
-          throw new Error(`HTTP error! status: ${reportResponse.status}`);
-        }
-        const reportContent = await reportResponse.json();
-        setTranscriptionReport(reportContent);
-      }
-
-      setTranscriptionResults(results);
+      const response = await apiClient.get(`/api/transcriptions/${transcriptionId}`);
+      setTranscription(response.data);
     } catch (error) {
-      console.error('Error fetching transcription results:', error);
-      setError('Failed to fetch transcription results. Please try again later.');
+      console.error('Error fetching transcription:', error);
+      setError('Failed to fetch transcription. Please try again later.');
     } finally {
       setIsLoading(false);
     }
-  }, []);
-
-  const checkTranscriptionStatus = useCallback(async () => {
-    if (!transcriptionUrlRef.current) return;
-
-    try {
-      const response = await apiClient.get('/transcription-status', {
-        params: { transcriptionUrl: transcriptionUrlRef.current },
-      });
-
-      console.log('Status response:', response.data);
-
-      const newStatus = response.data.status;
-      setTranscriptionStatus(newStatus);
-
-      if (newStatus === 'Succeeded') {
-        await fetchTranscriptionResults();
-        clearInterval(statusCheckIntervalRef.current);
-      } else if (newStatus === 'Failed' || newStatus === 'Cancelled') {
-        setError(`Transcription ${newStatus.toLowerCase()}. Please try again.`);
-        clearInterval(statusCheckIntervalRef.current);
-      }
-    } catch (error) {
-      console.error('Error checking transcription status:', error);
-      setError(`Failed to check transcription status: ${error.message}`);
-      clearInterval(statusCheckIntervalRef.current);
-    }
-  }, [fetchTranscriptionResults]);
+  }, [transcriptionId]);
 
   useEffect(() => {
-    transcriptionUrlRef.current = transcriptionUrl;
+    fetchTranscription();
+  }, [fetchTranscription]);
 
-    if (transcriptionUrl) {
-      checkTranscriptionStatus();
-      statusCheckIntervalRef.current = setInterval(checkTranscriptionStatus, 10000);
-    } else {
-      const placeholderData =
-        meetingType === 'legal' ? getLegalPlaceholderTranscription() : getExcoMeetingPlaceholderTranscription();
-      setTranscriptionResults(placeholderData);
-      setTranscriptionStatus('Completed');
-    }
+  const handleSummarize = async () => {
+    if (!transcription) return;
 
-    return () => {
-      if (statusCheckIntervalRef.current) {
-        clearInterval(statusCheckIntervalRef.current);
-      }
-    };
-  }, [transcriptionUrl, meetingType, checkTranscriptionStatus]);
-
-  useEffect(() => {
-    const checkScrollable = () => {
-      const newScrollableResults = {};
-      const newHasScrolled = {};
-      Object.keys(expandedResults).forEach(index => {
-        if (expandedResults[index] && resultRefs.current[index]) {
-          const { scrollHeight, clientHeight, scrollTop } = resultRefs.current[index];
-          newScrollableResults[index] = scrollHeight > clientHeight;
-          newHasScrolled[index] = scrollTop > 0;
-        }
-      });
-      setScrollableResults(newScrollableResults);
-      setHasScrolled(newHasScrolled);
-    };
-
-    const handleScroll = index => {
-      const { scrollTop, scrollHeight, clientHeight } = resultRefs.current[index];
-      setHasScrolled(prev => ({
-        ...prev,
-        [index]: scrollTop > 0 || scrollHeight <= clientHeight,
-      }));
-    };
-
-    Object.keys(expandedResults).forEach(index => {
-      if (expandedResults[index] && resultRefs.current[index]) {
-        resultRefs.current[index].addEventListener('scroll', () => handleScroll(index));
-      }
-    });
-
-    checkScrollable();
-    window.addEventListener('resize', checkScrollable);
-
-    return () => {
-      window.removeEventListener('resize', checkScrollable);
-      Object.keys(expandedResults).forEach(index => {
-        if (resultRefs.current[index]) {
-          resultRefs.current[index].removeEventListener('scroll', () => handleScroll(index));
-        }
-      });
-    };
-  }, [expandedResults, transcriptionResults]);
-
-  const toggleResultExpansion = index => {
-    setExpandedResults(prev => ({
-      ...prev,
-      [index]: !prev[index],
-    }));
-    setHasScrolled(prev => ({ ...prev, [index]: false }));
-  };
-
-  const formatDuration = durationInTicks => {
-    const seconds = durationInTicks / 10000000;
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.round(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  const renderTranscriptionReport = () => {
-    if (!transcriptionReport) return null;
-
-    return (
-      <div className='mt-4 p-4 bg-indigo-50 rounded-lg'>
-        <h3 className='text-lg font-semibold text-indigo-700 flex items-center mb-2'>
-          <FileBarChart className='mr-2' />
-          Transcription Report
-        </h3>
-        <p className='text-sm text-indigo-600'>
-          Successful Transcriptions: {transcriptionReport.successfulTranscriptionsCount}
-        </p>
-        <p className='text-sm text-indigo-600'>
-          Failed Transcriptions: {transcriptionReport.failedTranscriptionsCount}
-        </p>
-        {transcriptionReport.details && (
-          <div className='mt-2'>
-            <h4 className='text-md font-semibold text-indigo-600'>Details:</h4>
-            <ul className='list-disc list-inside'>
-              {transcriptionReport.details.map((detail, index) => (
-                <li key={index} className='text-sm text-indigo-600'>
-                  {detail.source}: {detail.status}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const handleSummarise = async () => {
-    setIsSummarising(true);
-    setSummarisationError(null);
-    setRetryAfter(null);
+    setIsSummarizing(true);
+    setError(null);
     try {
-      console.log('Starting summarisation process');
-
-      const response = await apiClient.post('/api/summarise', {
-        transcriptionResults: transcriptionResults,
-        meetingType: meetingType,
+      const response = await apiClient.post('/api/summaries', {
+        transcriptionId: transcription._id,
+        meetingType,
       });
-      console.log('Summarisation completed');
-      onSummaryGenerated(response.data.summary.trim());
+      onSummaryGenerated(response.data.summaryId);
     } catch (error) {
       console.error('Error generating summary:', error);
-      if (error.response) {
-        console.error('Error response data:', error.response.data);
-        console.error('Error response status:', error.response.status);
-        console.error('Error response headers:', error.response.headers);
-        if (error.response.status === 429) {
-          setSummarisationError('Rate limit exceeded. Please try again later.');
-          setRetryAfter(error.response.data.retryAfter);
-        } else {
-          setSummarisationError('An error occurred while generating the summary. Please try again.');
-        }
-      } else if (error.request) {
-        console.error('Error request:', error.request);
-        setSummarisationError('No response received from the server. Please try again.');
-      } else {
-        console.error('Error message:', error.message);
-        setSummarisationError('An error occurred while sending the request. Please try again.');
-      }
+      setError('Failed to generate summary. Please try again later.');
     } finally {
-      setIsSummarising(false);
+      setIsSummarizing(false);
     }
   };
 
-  const formatRetryTime = seconds => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    return `${hours} hours and ${minutes} minutes`;
-  };
+  if (isLoading) {
+    return (
+      <div className='flex justify-center items-center h-64'>
+        <Loader className='animate-spin text-indigo-600' size={48} />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className='text-red-600 text-center flex items-center justify-center'>
+        <AlertCircle className='mr-2' />
+        {error}
+      </div>
+    );
+  }
+
+  if (!transcription) {
+    return null;
+  }
 
   return (
     <div className='bg-white shadow-md rounded-lg p-6'>
       <h2 className='text-2xl font-semibold text-indigo-700 mb-4 flex items-center'>
         <FileText className='mr-2' />
-        {transcriptionUrl
-          ? 'Transcription Results'
-          : `${meetingType === 'legal' ? 'Legal' : 'Meeting'} Placeholder Transcription`}
+        Transcription Result
       </h2>
-
-      {isLoading ? (
-        <div className='flex justify-center items-center h-64'>
-          <Loader className='animate-spin text-indigo-600' size={48} />
-        </div>
-      ) : error ? (
-        <div className='text-red-600 text-center flex items-center justify-center'>
-          <AlertCircle className='mr-2' />
-          {error}
-        </div>
-      ) : (
-        <div className='space-y-4'>
-          <p className='text-indigo-600 font-semibold'>
-            Status: <span className=' text-black'>{transcriptionStatus}</span>
-          </p>
-          {renderTranscriptionReport()}
-          {transcriptionResults.map((result, index) => (
-            <div key={index} className='border border-indigo-200 rounded-lg p-4'>
-              <div
-                className='flex justify-between items-center cursor-pointer'
-                onClick={() => toggleResultExpansion(index)}>
-                <h3 className='text-lg font-semibold text-indigo-600'>{result.fileName}</h3>
-                {expandedResults[index] ? <ChevronUp /> : <ChevronDown />}
-              </div>
-              {expandedResults[index] && (
-                <div className='mt-2 space-y-2'>
-                  <p className='text-sm text-gray-600'>Duration: {formatDuration(result.content.durationInTicks)}</p>
-                  <div className='relative'>
-                    <div
-                      ref={el => (resultRefs.current[index] = el)}
-                      className='bg-indigo-50 p-3 rounded-md max-h-[500px] overflow-y-auto'>
-                      <p className='text-indigo-800 whitespace-pre-wrap'>
-                        {result.content.combinedRecognizedPhrases[0].display}
-                      </p>
-                    </div>
-                    {scrollableResults[index] && !hasScrolled[index] && (
-                      <div className='absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-indigo-50 to-transparent pointer-events-none flex justify-center items-end'>
-                        <ChevronDown className='text-indigo-600 animate-bounce mb-2' size={24} />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {transcriptionResults.length > 0 && !isLoading && !error && (
-        <div className='mt-4'>
-          <div className='mb-4'>
-            <p className='text-indigo-600 font-semibold'>
-              Selected Summary Type:{' '}
-              <span className=' text-black'>{meetingType === 'legal' ? 'Legal Hearing' : 'Standard Meeting'}</span>
-            </p>
-            <div className='flex space-x-4'>
-              <label className='inline-flex items-center sr-only'>
-                <input
-                  hidden
-                  type='radio'
-                  className='form-radio text-indigo-600'
-                  name='meetingType'
-                  value='legal'
-                  checked={meetingType === 'legal'}
-                  readOnly
-                />
-                <span className='ml-2'>Legal Hearing</span>
-              </label>
-              <label className='inline-flex items-center sr-only'>
-                <input
-                  hidden
-                  type='radio'
-                  className='form-radio text-indigo-600'
-                  name='meetingType'
-                  value='meeting'
-                  checked={meetingType === 'meeting'}
-                  readOnly
-                />
-                <span className='ml-2'>Standard Meeting</span>
-              </label>
-            </div>
-          </div>
-          <button
-            onClick={handleSummarise}
-            disabled={isSummarising || retryAfter}
-            className={`bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition-colors duration-300 flex items-center justify-center w-full sm:w-auto ${
-              (isSummarising || retryAfter) && 'opacity-50 cursor-not-allowed'
-            }`}>
-            {isSummarising ? (
-              <Loader className='animate-spin mr-2' size={18} />
-            ) : (
-              <Lightbulb className='mr-2' size={18} />
-            )}
-            {isSummarising
-              ? 'Summarising...'
-              : `Summarise ${meetingType === 'legal' ? 'Legal Hearing' : 'Standard Meeting'}`}
-          </button>
-          {summarisationError && (
-            <p className='text-red-600 mt-2 flex items-center'>
-              <AlertCircle className='mr-2' size={18} />
-              {summarisationError}
-            </p>
-          )}
-          {retryAfter && (
-            <p className='text-indigo-600 mt-2'>You can try again in approximately {formatRetryTime(retryAfter)}.</p>
-          )}
-        </div>
-      )}
-
-      {transcriptionResults.length === 0 && !isLoading && !error && (
-        <p className='text-center text-gray-600'>No transcription results available yet.</p>
-      )}
+      <div className='mb-4'>
+        <p className='text-gray-600'>
+          <strong>Status:</strong> {transcription.status}
+        </p>
+        <p className='text-gray-600'>
+          <strong>Meeting Type:</strong> {transcription.meetingType}
+        </p>
+      </div>
+      <div className='bg-indigo-50 p-4 rounded-md max-h-96 overflow-y-auto'>
+        <pre className='whitespace-pre-wrap'>{transcription.content}</pre>
+      </div>
+      <button
+        onClick={handleSummarize}
+        disabled={isSummarizing}
+        className='mt-4 flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'>
+        {isSummarizing ? (
+          <>
+            <Loader className='animate-spin mr-2' size={18} />
+            Summarizing...
+          </>
+        ) : (
+          <>
+            <Lightbulb className='mr-2' size={18} />
+            Generate Summary
+          </>
+        )}
+      </button>
     </div>
   );
 };
