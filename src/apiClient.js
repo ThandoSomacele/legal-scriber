@@ -1,9 +1,8 @@
-// src/apiClient.js
-
 import axios from 'axios';
+import envConfig from './../envConfig.js';
 
 const apiClient = axios.create({
-  baseURL: process.env.VITE_API_URL || 'http://localhost:3001',
+  baseURL: envConfig.apiUrl,
   withCredentials: true,
 });
 
