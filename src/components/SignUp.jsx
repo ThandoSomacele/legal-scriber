@@ -35,7 +35,7 @@ const SignUp = () => {
   };
 
   return (
-    <div className='max-w-md mx-auto mt-10'>
+    <div className='max-w-md mx-auto my-10 lg:my-32'>
       <h2 className='text-2xl font-bold text-indigo-700 mb-6'>Sign Up</h2>
       <form onSubmit={handleSubmit} className='space-y-4'>
         <div>

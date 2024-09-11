@@ -5,14 +5,9 @@ const dbConnect = () => {
   const connectionString = process.env.COSMOSDB_CONNECTION_STRING;
 
   mongoose
-    .connect(connectionString, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      useCreateIndex: true,
-      useFindAndModify: false,
-    })
+    .connect(connectionString)
     .then(() => console.log('Connected to Azure Cosmos DB'))
-    .catch(err => console.error('Error connecting to Azure Cosmos DB:', err));
+    .catch(err => console.error('Error connecting to database:', err));
 };
 
 export default dbConnect;

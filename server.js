@@ -1,8 +1,8 @@
 import express from 'express';
 import dotenv from 'dotenv';
-import authRoutes from './routes/auth.js';
-import transcriptionRoutes from './routes/transcriptions.js';
-import summaryRoutes from './routes/summaries.js';
+import authRoutes from './src/routes/auth.js';
+import transcriptionRoutes from './src/routes/transcriptions.js';
+import summaryRoutes from './src/routes/summaries.js';
 import multer from 'multer';
 import {
   BlobServiceClient,
@@ -23,7 +23,11 @@ import standardMeetingModelContent from './src/lib/standardMeetingModelContent.j
 import envConfig from './envConfig.js';
 import dbConnect from './src/db.js';
 
+dotenv.config();
+
 dbConnect();
+
+const app = express();
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -35,10 +39,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 EventEmitter.defaultMaxListeners = 15;
-
-dotenv.config();
-
-const app = express();
 
 if (process.env.NODE_ENV === 'production') {
   // Serve static files from the React app
