@@ -10,19 +10,6 @@ const MultiAudioUploader = ({ onTranscriptionCreated, meetingType }) => {
   const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
 
-  const handleFileChange = event => {
-    const files = Array.from(event.target.files);
-    const newAudioFiles = files.filter(file => file.type.startsWith('audio/'));
-    setAudioFiles(prevFiles => [...prevFiles, ...newAudioFiles]);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const removeFile = index => {
-    setAudioFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
-  };
-
   const handleSubmit = async event => {
     event.preventDefault();
     if (audioFiles.length === 0) {
@@ -36,14 +23,35 @@ const MultiAudioUploader = ({ onTranscriptionCreated, meetingType }) => {
       audioFiles.forEach(file => formData.append('files', file));
       formData.append('meetingType', meetingType);
 
-      const response = await apiClient.post('/api/transcriptions', formData);
+      const response = await apiClient.post('/api/transcriptions', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
       onTranscriptionCreated(response.data.transcriptionId, meetingType);
     } catch (error) {
       console.error('Transcription error:', error);
-      setError(`An error occurred during transcription: ${error.message}`);
+      if (error.response && error.response.status === 401) {
+        setError('You are not authenticated. Please log in and try again.');
+      } else {
+        setError(`An error occurred during transcription: ${error.message}`);
+      }
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleFileChange = event => {
+    const files = Array.from(event.target.files);
+    const newAudioFiles = files.filter(file => file.type.startsWith('audio/'));
+    setAudioFiles(prevFiles => [...prevFiles, ...newAudioFiles]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removeFile = index => {
+    setAudioFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
   };
 
   return (

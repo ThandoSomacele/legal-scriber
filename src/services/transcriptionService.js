@@ -1,3 +1,5 @@
+// src/services/transcriptionService.js
+
 import Transcription from '../models/Transcription.js';
 import { BlobServiceClient } from '@azure/storage-blob';
 import { speechToText } from './azureSpeechService.js';
@@ -7,6 +9,10 @@ const containerClient = blobServiceClient.getContainerClient(process.env.VITE_AU
 
 export const uploadAndTranscribe = async (files, meetingType, userId) => {
   try {
+    if (!files || !Array.isArray(files) || files.length === 0) {
+      throw new Error('No files provided for transcription');
+    }
+
     const audioFileUrls = await Promise.all(files.map(uploadFile));
 
     const transcription = new Transcription({
@@ -14,7 +20,6 @@ export const uploadAndTranscribe = async (files, meetingType, userId) => {
       meetingType,
       audioFileUrls,
       status: 'pending',
-      content: '',
     });
 
     await transcription.save();
@@ -38,6 +43,9 @@ const uploadFile = async file => {
 
 const processTranscription = async transcription => {
   try {
+    transcription.status = 'processing';
+    await transcription.save();
+
     const transcriptionTexts = await Promise.all(transcription.audioFileUrls.map(url => speechToText(url)));
 
     transcription.content = transcriptionTexts.join('\n\n');

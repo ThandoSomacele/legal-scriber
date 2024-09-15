@@ -1,9 +1,32 @@
-import { SpeechConfig, AudioConfig, SpeechRecognizer } from 'microsoft-cognitiveservices-speech-sdk';
+import {
+  SpeechConfig,
+  AudioConfig,
+  SpeechRecognizer,
+  AudioInputStream,
+  ResultReason,
+  CancellationReason,
+} from 'microsoft-cognitiveservices-speech-sdk';
 
-export const speechToText = audioFileUrl => {
+export const speechToText = async audioFileUrl => {
   return new Promise((resolve, reject) => {
     const speechConfig = SpeechConfig.fromSubscription(process.env.VITE_SPEECH_KEY, process.env.VITE_SERVICE_REGION);
-    const audioConfig = AudioConfig.fromWavFileInput(audioFileUrl);
+
+    // Create a push stream
+    const pushStream = AudioInputStream.createPushStream();
+
+    // Fetch the audio file and push it to the stream
+    fetch(audioFileUrl)
+      .then(response => response.arrayBuffer())
+      .then(arrayBuffer => {
+        pushStream.write(new Uint8Array(arrayBuffer));
+        pushStream.close();
+      })
+      .catch(error => {
+        console.error('Error fetching audio file:', error);
+        reject(error);
+      });
+
+    const audioConfig = AudioConfig.fromStreamInput(pushStream);
     const recognizer = new SpeechRecognizer(speechConfig, audioConfig);
 
     let transcription = '';

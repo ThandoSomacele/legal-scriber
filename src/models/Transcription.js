@@ -13,7 +13,7 @@ const transcriptionSchema = new mongoose.Schema({
   },
   content: {
     type: String,
-    required: true,
+    default: '',
   },
   audioFileUrls: [
     {
@@ -23,7 +23,7 @@ const transcriptionSchema = new mongoose.Schema({
   ],
   status: {
     type: String,
-    enum: ['pending', 'completed', 'failed'],
+    enum: ['pending', 'processing', 'completed', 'failed'],
     default: 'pending',
   },
   createdAt: {

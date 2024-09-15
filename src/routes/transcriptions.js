@@ -1,19 +1,26 @@
 import express from 'express';
 import Transcription from '../models/Transcription.js';
 import { uploadAndTranscribe } from '../services/transcriptionService.js';
+import auth from '../middleware/auth.js';
+import multer from 'multer';
 
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage() });
 
-router.post('/', async (req, res) => {
+router.post('/', auth, upload.array('files'), async (req, res) => {
   try {
-    const { files, meetingType } = req.body;
-    const userId = req.user.id; // Assuming you have authentication middleware
+    const { meetingType } = req.body;
+    const userId = req.user.id;
 
-    const transcription = await uploadAndTranscribe(files, meetingType, userId);
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ message: 'No files uploaded' });
+    }
+
+    const transcription = await uploadAndTranscribe(req.files, meetingType, userId);
     res.status(201).json({ transcriptionId: transcription.id });
   } catch (error) {
     console.error('Error creating transcription:', error);
-    res.status(500).json({ message: 'Error creating transcription' });
+    res.status(500).json({ message: 'Error creating transcription', error: error.message });
   }
 });
 
