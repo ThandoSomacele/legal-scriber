@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import authRoutes from './src/routes/auth.js';
 import transcriptionRoutes from './src/routes/transcriptions.js';
 import summaryRoutes from './src/routes/summaries.js';
+import userRoutes from './src/routes/user.js';
 import multer from 'multer';
 import {
   BlobServiceClient,
@@ -42,6 +43,7 @@ app.use(express.json({ limit: '10mb' }));
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/user', userRoutes);
 app.use('/api/transcriptions', transcriptionRoutes);
 app.use('/api/summaries', summaryRoutes);
 

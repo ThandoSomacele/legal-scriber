@@ -30,7 +30,7 @@ const SignUp = () => {
       await signup(formData.name, formData.email, formData.password);
       navigate('/dashboard');
     } catch (error) {
-      setError('Failed to create an account');
+      setError(error.response?.data?.message || 'Failed to create an account');
     }
   };
 

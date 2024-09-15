@@ -1,3 +1,5 @@
+// src/contexts/AuthContext.jsx
+
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import apiClient from '../apiClient';
 
@@ -12,14 +14,19 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // Check if user is logged in
     const checkLoggedIn = async () => {
-      try {
-        const response = await apiClient.get('/api/user/profile');
-        setUser(response.data);
-      } catch (error) {
-        console.error('Failed to fetch user profile:', error);
-      } finally {
-        setLoading(false);
+      const token = localStorage.getItem('token');
+      if (token) {
+        apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        try {
+          const response = await apiClient.get('/api/user/profile');
+          setUser(response.data);
+        } catch (error) {
+          console.error('Failed to fetch user profile:', error);
+          localStorage.removeItem('token');
+          delete apiClient.defaults.headers.common['Authorization'];
+        }
       }
+      setLoading(false);
     };
 
     checkLoggedIn();
@@ -29,8 +36,9 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await apiClient.post('/api/auth/login', { email, password });
       localStorage.setItem('token', response.data.token);
-      setUser(response.data.user);
       apiClient.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+      const userResponse = await apiClient.get('/api/user/profile');
+      setUser(userResponse.data);
     } catch (error) {
       console.error('Login error:', error);
       throw error;
@@ -41,8 +49,9 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await apiClient.post('/api/auth/signup', { name, email, password });
       localStorage.setItem('token', response.data.token);
-      setUser(response.data.user);
       apiClient.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+      const userResponse = await apiClient.get('/api/user/profile');
+      setUser(userResponse.data);
     } catch (error) {
       console.error('Signup error:', error);
       throw error;
@@ -51,14 +60,14 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('token');
-    setUser(null);
     delete apiClient.defaults.headers.common['Authorization'];
+    setUser(null);
   };
 
   const value = {
     user,
-    signup,
     login,
+    signup,
     logout,
     loading,
   };

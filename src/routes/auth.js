@@ -1,32 +1,55 @@
 // src/routes/auth.js
 
 import express from 'express';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 
 const router = express.Router();
 
 router.post('/signup', async (req, res) => {
+  console.log('Signup request received:', req.body);
   try {
     const { name, email, password } = req.body;
+
+    // Validate input
+    if (!name || !email || !password) {
+      console.log('Missing required fields');
+      return res.status(400).json({ message: 'Please provide all required fields' });
+    }
 
     // Check if user already exists
     let user = await User.findOne({ email });
     if (user) {
+      console.log('User already exists');
       return res.status(400).json({ message: 'User already exists' });
     }
 
     // Create new user
     user = new User({ name, email, password });
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
+
     await user.save();
+    console.log('User saved successfully');
 
-    // Create token (you might want to use JWT for this)
-    const token = user.getSignedJwtToken();
+    // Create and return JWT token
+    const payload = {
+      user: {
+        id: user.id,
+      },
+    };
 
-    res.status(201).json({ success: true, token });
+    jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' }, (err, token) => {
+      if (err) throw err;
+      console.log('Token generated successfully');
+      res.json({ token });
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Signup error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
