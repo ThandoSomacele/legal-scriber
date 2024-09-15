@@ -1,15 +1,16 @@
-// eslint-disable-next-line no-unused-vars
 import React, { useState, useRef, useEffect } from 'react';
 import { Menu, X, User, ChevronDown } from 'lucide-react';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { Link as ScrollLink } from 'react-scroll';
+import { useAuth } from '../../contexts/AuthContext';
 
-const Header = ({ isLoggedIn, setIsLoggedIn }) => {
+const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const userMenuRef = useRef(null);
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     const handleClickOutside = event => {
@@ -33,7 +34,7 @@ const Header = ({ isLoggedIn, setIsLoggedIn }) => {
   };
 
   const handleSignOut = () => {
-    setIsLoggedIn(false);
+    logout();
     setIsUserMenuOpen(false);
     navigate('/');
   };
@@ -55,7 +56,7 @@ const Header = ({ isLoggedIn, setIsLoggedIn }) => {
   ];
 
   // Determine which nav items to use based on login state
-  const navItems = isLoggedIn ? userNavItems : marketingNavItems;
+  const navItems = user ? userNavItems : marketingNavItems;
 
   // Common link style
   const linkStyle = 'text-base font-medium text-gray-500 hover:text-gray-900';
@@ -115,13 +116,13 @@ const Header = ({ isLoggedIn, setIsLoggedIn }) => {
 
           {/* User actions */}
           <div className='hidden md:flex items-center justify-end md:flex-1 lg:w-0'>
-            {isLoggedIn ? (
+            {user ? (
               <div className='relative' ref={userMenuRef}>
                 <button
                   onClick={toggleUserMenu}
                   className='flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'>
                   <User className='h-8 w-8 text-indigo-600 mr-2' />
-                  <span>User</span>
+                  <span>{user.name}</span>
                   <ChevronDown className='ml-2 h-5 w-5' aria-hidden='true' />
                 </button>
                 {isUserMenuOpen && (
@@ -145,20 +146,16 @@ const Header = ({ isLoggedIn, setIsLoggedIn }) => {
               </div>
             ) : (
               <>
-                <button
-                  onClick={() => setIsLoggedIn(true)}
+                <RouterLink
+                  to='/login'
                   className='whitespace-nowrap text-base font-medium text-gray-500 hover:text-gray-900'>
                   Sign in
-                </button>
-                <a
-                  href='#'
-                  onClick={e => {
-                    e.preventDefault();
-                    setIsLoggedIn(true);
-                  }}
+                </RouterLink>
+                <RouterLink
+                  to='/signup'
                   className='ml-8 whitespace-nowrap inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700'>
                   Sign up
-                </a>
+                </RouterLink>
               </>
             )}
           </div>
@@ -178,7 +175,7 @@ const Header = ({ isLoggedIn, setIsLoggedIn }) => {
         </div>
         <div className='pt-4 pb-3 border-t border-gray-200'>
           <div className='px-2 space-y-1'>
-            {isLoggedIn ? (
+            {user ? (
               <>
                 <RouterLink
                   to='/profile'
@@ -203,20 +200,16 @@ const Header = ({ isLoggedIn, setIsLoggedIn }) => {
               </>
             ) : (
               <>
-                <button
-                  onClick={() => setIsLoggedIn(true)}
+                <RouterLink
+                  to='/login'
                   className='block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50'>
                   Sign in
-                </button>
-                <a
-                  href='#'
-                  onClick={e => {
-                    e.preventDefault();
-                    setIsLoggedIn(true);
-                  }}
+                </RouterLink>
+                <RouterLink
+                  to='/signup'
                   className='block w-full text-left px-3 py-2 rounded-md text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700'>
                   Sign up
-                </a>
+                </RouterLink>
               </>
             )}
           </div>

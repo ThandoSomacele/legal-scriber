@@ -1,4 +1,9 @@
 import express from 'express';
+import dotenv from 'dotenv';
+import authRoutes from './src/routes/auth.js';
+import transcriptionRoutes from './src/routes/transcriptions.js';
+import summaryRoutes from './src/routes/summaries.js';
+import userRoutes from './src/routes/user.js';
 import multer from 'multer';
 import {
   BlobServiceClient,
@@ -6,7 +11,6 @@ import {
   generateBlobSASQueryParameters,
   BlobSASPermissions,
 } from '@azure/storage-blob';
-import dotenv from 'dotenv';
 import cors from 'cors';
 import axios from 'axios';
 import axiosRetry from 'axios-retry';
@@ -18,16 +22,42 @@ import { fileURLToPath } from 'url';
 import legalModelContent from './src/lib/legalModelContent.js';
 import standardMeetingModelContent from './src/lib/standardMeetingModelContent.js';
 import envConfig from './envConfig.js';
+import dbConnect from './src/db.js';
+
+dotenv.config();
+
+dbConnect();
+
+const app = express();
+
+// CORS configuration
+app.use(
+  cors({
+    origin: envConfig.frontendUrl,
+    credentials: true,
+  })
+);
+
+// Set a reasonable size limit for JSON payloads
+app.use(express.json({ limit: '10mb' }));
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/user', userRoutes);
+app.use('/api/transcriptions', transcriptionRoutes);
+app.use('/api/summaries', summaryRoutes);
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('Something went wrong!');
+});
 
 // Get __dirname equivalent in ES module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 EventEmitter.defaultMaxListeners = 15;
-
-dotenv.config();
-
-const app = express();
 
 if (process.env.NODE_ENV === 'production') {
   // Serve static files from the React app
@@ -39,16 +69,6 @@ if (process.env.NODE_ENV === 'production') {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
   });
 }
-
-// Set a reasonable size limit for JSON payloads
-app.use(express.json({ limit: '10mb' })); // Increased from default, but still secure
-
-app.use(
-  cors({
-    origin: envConfig.frontendUrl,
-    credentials: true,
-  })
-);
 
 // Configure multer for handling file uploads
 const storage = multer.memoryStorage();
@@ -300,10 +320,4 @@ const port = process.env.PORT || 3001;
 app.listen(port, '0.0.0.0', () => {
   console.log(`Server is running on port ${port}`);
   console.log(`Serving static files from: ${path.join(__dirname, 'dist')}`);
-});
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).send('Something broke!');
 });
