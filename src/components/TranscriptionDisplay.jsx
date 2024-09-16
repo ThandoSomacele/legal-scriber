@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FileText, Loader, AlertCircle, Lightbulb } from 'lucide-react';
 import apiClient from '../apiClient';
+import Disclaimer from './Disclaimer';
 
 const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType }) => {
   const [transcription, setTranscription] = useState(null);
@@ -13,8 +14,10 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
 
     try {
       const response = await apiClient.get(`/api/transcriptions/${transcriptionId}`);
-      // console.log('Fetched transcription:', response.data);
       setTranscription(response.data);
+
+      // Store the transcription data in localStorage
+      localStorage.setItem('transcription', JSON.stringify(response.data));
 
       // If the transcription is still processing, set up a timer to check again
       if (response.data.status === 'processing' || response.data.status === 'submitted') {
@@ -30,6 +33,13 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
   }, [transcriptionId]);
 
   useEffect(() => {
+    // Try to load transcription from localStorage on component mount
+    const storedTranscription = localStorage.getItem('transcription');
+    if (storedTranscription) {
+      setTranscription(JSON.parse(storedTranscription));
+      setIsLoading(false);
+    }
+
     fetchTranscription();
   }, [fetchTranscription]);
 
@@ -84,6 +94,9 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
         <FileText className='mr-2' />
         Transcription Result
       </h2>
+
+      {/* Add the Disclaimer component */}
+      <Disclaimer type='transcription' />
       {!transcriptionId ? (
         <div className='bg-indigo-50 p-4 rounded-md'>
           <p className='text-indigo-700'>

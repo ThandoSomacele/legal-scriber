@@ -23,6 +23,10 @@ const MultiAudioUploader = ({ onTranscriptionCreated, meetingType }) => {
       audioFiles.forEach(file => formData.append('files', file));
       formData.append('meetingType', meetingType);
 
+      // Clear localStorage before starting a new transcription
+      localStorage.removeItem('transcription');
+      localStorage.removeItem('summary');
+
       const response = await apiClient.post('/api/transcriptions', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -32,7 +36,7 @@ const MultiAudioUploader = ({ onTranscriptionCreated, meetingType }) => {
           setUploadProgress(percentCompleted);
         },
       });
-      console.log('Transcription created:', response.data); // Add this log
+      console.log('Transcription created:', response.data);
       onTranscriptionCreated(response.data.transcriptionId, meetingType);
     } catch (error) {
       console.error('Transcription error:', error);

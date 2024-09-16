@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import MarkdownEditor from 'react-markdown-editor-lite';
 import 'react-markdown-editor-lite/lib/index.css';
-import { Save, Edit, Copy, Loader, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Save, Edit, Copy, Loader, AlertCircle } from 'lucide-react';
 import apiClient from '../apiClient';
 import MarkdownCheatsheet from './MarkdownCheatsheet';
-import '../styles/SummaryEditor.css'; // Import the custom CSS file
+import Disclaimer from './Disclaimer';
+import '../styles/SummaryEditor.css';
 
 const SummaryEditor = ({ summaryId, meetingType }) => {
   const [summary, setSummary] = useState('');
@@ -13,7 +14,6 @@ const SummaryEditor = ({ summaryId, meetingType }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [showCheatsheet, setShowCheatsheet] = useState(false);
 
   useEffect(() => {
     const fetchSummary = async () => {
@@ -22,8 +22,19 @@ const SummaryEditor = ({ summaryId, meetingType }) => {
       setIsLoading(true);
       setError(null);
       try {
+        // Try to load summary from localStorage first
+        const storedSummary = localStorage.getItem('summary');
+        if (storedSummary) {
+          setSummary(JSON.parse(storedSummary).content);
+          setIsLoading(false);
+          return;
+        }
+
         const response = await apiClient.get(`/api/summaries/${summaryId}`);
         setSummary(response.data.content);
+
+        // Store the summary in localStorage
+        localStorage.setItem('summary', JSON.stringify(response.data));
       } catch (error) {
         console.error('Error fetching summary:', error);
         setError('Failed to fetch summary. Please try again later.');
@@ -45,6 +56,9 @@ const SummaryEditor = ({ summaryId, meetingType }) => {
     try {
       await apiClient.put(`/api/summaries/${summaryId}`, { content: summary });
       setIsEditing(false);
+
+      // Update the stored summary in localStorage
+      localStorage.setItem('summary', JSON.stringify({ content: summary }));
     } catch (error) {
       console.error('Error saving summary:', error);
       setError('Failed to save summary. Please try again later.');
@@ -68,15 +82,14 @@ const SummaryEditor = ({ summaryId, meetingType }) => {
     setIsEditing(!isEditing);
   };
 
-  const toggleCheatsheet = () => {
-    setShowCheatsheet(!showCheatsheet);
-  };
-
   return (
-    <div className='bg-white shadow-md rounded-lg p-4 md:p-6'>
+    <div className='bg-white shadow-md rounded-lg p-6'>
       <h2 className='text-2xl font-semibold text-indigo-700 mb-4'>
         {meetingType === 'legal' ? 'Legal Hearing' : 'Meeting'} Summary
       </h2>
+
+      {/* Add the Disclaimer component */}
+      <Disclaimer type='summary' />
 
       {!summaryId ? (
         <div className='bg-indigo-50 p-4 rounded-md mb-4'>

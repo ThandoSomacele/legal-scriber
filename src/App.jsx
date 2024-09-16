@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -23,7 +23,31 @@ function App() {
   const [summaryId, setSummaryId] = useState(null);
   const [meetingType, setMeetingType] = useState('legal');
 
+  useEffect(() => {
+    // Load stored transcription and summary IDs on component mount
+    const storedTranscription = localStorage.getItem('transcription');
+    const storedSummary = localStorage.getItem('summary');
+
+    if (storedTranscription) {
+      const parsedTranscription = JSON.parse(storedTranscription);
+      setTranscriptionId(parsedTranscription._id);
+      setMeetingType(parsedTranscription.meetingType);
+    }
+
+    if (storedSummary) {
+      const parsedSummary = JSON.parse(storedSummary);
+      setSummaryId(parsedSummary._id);
+    }
+  }, []);
+
   const handleTranscriptionCreated = (id, type) => {
+    // Clear previous transcription and summary data
+    setTranscriptionId(null);
+    setSummaryId(null);
+    localStorage.removeItem('transcription');
+    localStorage.removeItem('summary');
+
+    // Set new transcription data
     setTranscriptionId(id);
     setMeetingType(type);
   };
