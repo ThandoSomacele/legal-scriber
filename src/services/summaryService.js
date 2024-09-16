@@ -10,12 +10,20 @@ export const generateSummary = async (transcriptionId, meetingType, userId) => {
       throw new Error('Transcription not found');
     }
 
-    const summaryContent = await generateSummaryWithAI(transcription.content, meetingType);
+    if (transcription.status !== 'completed') {
+      throw new Error('Transcription is not yet completed');
+    }
+
+    let summaryContent = '';
+    for (const content of transcription.content) {
+      const partialSummary = await generateSummaryWithAI(content, meetingType);
+      summaryContent += partialSummary + '\n\n';
+    }
 
     const summary = new Summary({
       user: userId,
       transcription: transcriptionId,
-      content: summaryContent,
+      content: summaryContent.trim(),
       meetingType,
     });
 

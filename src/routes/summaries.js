@@ -1,19 +1,24 @@
 import express from 'express';
 import Summary from '../models/Summary.js';
 import { generateSummary } from '../services/summaryService.js';
+import auth from '../middleware/auth.js';
 
 const router = express.Router();
 
-router.post('/', async (req, res) => {
+router.post('/', auth, async (req, res) => {
   try {
     const { transcriptionId, meetingType } = req.body;
-    const userId = req.user.id; // Assuming you have authentication middleware
+    const userId = req.user.id; // Make sure this is coming from the auth middleware
+
+    if (!transcriptionId || !meetingType) {
+      return res.status(400).json({ message: 'TranscriptionId and meetingType are required' });
+    }
 
     const summary = await generateSummary(transcriptionId, meetingType, userId);
-    res.status(201).json({ summaryId: summary.id });
+    res.status(201).json({ summaryId: summary._id });
   } catch (error) {
     console.error('Error creating summary:', error);
-    res.status(500).json({ message: 'Error creating summary' });
+    res.status(500).json({ message: 'Error creating summary', error: error.message });
   }
 });
 

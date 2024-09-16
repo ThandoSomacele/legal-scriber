@@ -13,7 +13,7 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
 
     try {
       const response = await apiClient.get(`/api/transcriptions/${transcriptionId}`);
-      console.log('Fetched transcription:', response.data);
+      // console.log('Fetched transcription:', response.data);
       setTranscription(response.data);
 
       // If the transcription is still processing, set up a timer to check again
@@ -46,7 +46,7 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
       onSummaryGenerated(response.data.summaryId);
     } catch (error) {
       console.error('Error generating summary:', error);
-      setError('Failed to generate summary. Please try again later.');
+      setError(error.response?.data?.message || 'Failed to generate summary. Please try again later.');
     } finally {
       setIsSummarizing(false);
     }
@@ -152,6 +152,14 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
           )}
         </>
       ) : null}
+      {error && (
+        <div className='mt-4 p-4 bg-red-100 text-red-700 rounded-md'>
+          <p className='text-sm flex items-center'>
+            <AlertCircle className='mr-2' size={18} />
+            {error}
+          </p>
+        </div>
+      )}
     </div>
   );
 };
