@@ -4,7 +4,7 @@ import apiClient from '../apiClient';
 
 const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType }) => {
   const [transcription, setTranscription] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
 
@@ -84,7 +84,15 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
         <FileText className='mr-2' />
         Transcription Result
       </h2>
-      {isLoading ? (
+      {!transcriptionId ? (
+        <div className='bg-indigo-50 p-4 rounded-md'>
+          <p className='text-indigo-700'>
+            Your transcription will appear here once you've uploaded and processed an audio file. The transcription will
+            convert your {meetingType === 'legal' ? 'legal hearing' : 'meeting'} audio into text, making it easy to
+            review and analyse.
+          </p>
+        </div>
+      ) : isLoading ? (
         <div className='flex flex-col items-center justify-center h-64'>
           <Loader className='animate-spin text-indigo-600 mb-4' size={48} />
           <span className='text-lg text-indigo-600'>

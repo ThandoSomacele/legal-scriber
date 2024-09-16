@@ -18,28 +18,27 @@ const MarkdownCheatsheet = () => {
   ];
 
   return (
-    <div className="bg-white shadow-md rounded-lg overflow-hidden">
+    <div className='bg-white shadow-md rounded-lg overflow-hidden mt-5'>
       <button
-        className="w-full px-4 py-2 bg-primary-600 text-white flex justify-between items-center"
-        onClick={() => setIsOpen(!isOpen)}
-      >
+        className='w-full px-4 py-2 bg-primary-600 text-white flex justify-between items-center'
+        onClick={() => setIsOpen(!isOpen)}>
         Markdown Cheatsheet
         {isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
       </button>
       {isOpen && (
-        <div className="p-4">
-          <table className="w-full text-left">
+        <div className='p-4'>
+          <table className='w-full text-left'>
             <thead>
               <tr>
-                <th className="pb-2">Syntax</th>
-                <th className="pb-2">Description</th>
+                <th className='pb-2'>Syntax</th>
+                <th className='pb-2'>Description</th>
               </tr>
             </thead>
             <tbody>
               {cheatsheetContent.map((item, index) => (
-                <tr key={index} className="border-t">
-                  <td className="py-2 pr-4 font-mono text-sm">{item.syntax}</td>
-                  <td className="py-2">{item.description}</td>
+                <tr key={index} className='border-t'>
+                  <td className='py-2 pr-4 font-mono text-sm'>{item.syntax}</td>
+                  <td className='py-2'>{item.description}</td>
                 </tr>
               ))}
             </tbody>

@@ -82,7 +82,7 @@ function App() {
                 path='/transcribe'
                 element={
                   <ProtectedRoute>
-                    <div className='flex flex-col space-y-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
+                    <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8'>
                       <div className='bg-white shadow-md rounded-lg p-6'>
                         <h2 className='text-2xl font-semibold text-indigo-700 mb-4'>Select Meeting Type</h2>
                         <div className='flex space-x-4'>
@@ -110,14 +110,12 @@ function App() {
                         onTranscriptionCreated={handleTranscriptionCreated}
                         meetingType={meetingType}
                       />
-                      {transcriptionId && (
-                        <TranscriptionDisplay
-                          transcriptionId={transcriptionId}
-                          onSummaryGenerated={handleSummaryGenerated}
-                          meetingType={meetingType}
-                        />
-                      )}
-                      {summaryId && <SummaryEditor summaryId={summaryId} meetingType={meetingType} />}
+                      <TranscriptionDisplay
+                        transcriptionId={transcriptionId}
+                        onSummaryGenerated={handleSummaryGenerated}
+                        meetingType={meetingType}
+                      />
+                      <SummaryEditor summaryId={summaryId} meetingType={meetingType} />
                     </div>
                   </ProtectedRoute>
                 }
