@@ -17,7 +17,7 @@ router.post('/', auth, upload.array('files'), async (req, res) => {
     }
 
     const transcription = await uploadAndTranscribe(req.files, meetingType, userId);
-    res.status(201).json({ transcriptionId: transcription.id });
+    res.status(201).json({ transcriptionId: transcription.id, transcriptionUrl: transcription.transcriptionUrl });
   } catch (error) {
     console.error('Error creating transcription:', error);
     res.status(500).json({ message: 'Error creating transcription', error: error.message });
