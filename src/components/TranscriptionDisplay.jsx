@@ -11,21 +11,20 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
   const fetchTranscription = useCallback(async () => {
     if (!transcriptionId) return;
 
-    setIsLoading(true);
-    setError(null);
     try {
       const response = await apiClient.get(`/api/transcriptions/${transcriptionId}`);
-      console.log('Fetched transcription:', response.data); // Add this log
+      console.log('Fetched transcription:', response.data);
       setTranscription(response.data);
 
       // If the transcription is still processing, set up a timer to check again
       if (response.data.status === 'processing' || response.data.status === 'submitted') {
         setTimeout(fetchTranscription, 10000); // Check every 10 seconds
+      } else {
+        setIsLoading(false);
       }
     } catch (error) {
       console.error('Error fetching transcription:', error);
       setError('Failed to fetch transcription. Please try again later.');
-    } finally {
       setIsLoading(false);
     }
   }, [transcriptionId]);
@@ -53,13 +52,13 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
     }
   };
 
-  const renderTranscriptionContent = () => {
-    if (!transcription.content) {
+  const renderTranscriptionContent = content => {
+    if (!content) {
       return <p className='text-gray-600'>No transcription content available.</p>;
     }
 
     try {
-      const contentObject = JSON.parse(transcription.content);
+      const contentObject = JSON.parse(content);
       if (contentObject.combinedRecognizedPhrases && contentObject.combinedRecognizedPhrases.length > 0) {
         return (
           <div className='bg-indigo-50 p-4 rounded-md max-h-96 overflow-y-auto'>
@@ -71,11 +70,11 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
           </div>
         );
       } else {
-        return <p className='text-gray-600'>{transcription.content}</p>;
+        return <p className='text-gray-600'>{content}</p>;
       }
     } catch (e) {
       console.error('Error parsing transcription content:', e);
-      return <p className='text-gray-600'>{transcription.content}</p>;
+      return <p className='text-gray-600'>{content}</p>;
     }
   };
 
@@ -89,7 +88,7 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
         <div className='flex flex-col items-center justify-center h-64'>
           <Loader className='animate-spin text-indigo-600 mb-4' size={48} />
           <span className='text-lg text-indigo-600'>
-            {transcription?.status === 'processing'
+            {transcription?.status === 'processing' || transcription?.status === 'submitted'
               ? 'Transcription in progress...'
               : 'Fetching transcription status...'}
           </span>
@@ -117,7 +116,14 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
               </p>
             </div>
           ) : transcription.status === 'completed' ? (
-            renderTranscriptionContent()
+            <>
+              {transcription.audioFileUrls.map((url, index) => (
+                <div key={index} className='mb-6'>
+                  <h3 className='text-lg font-semibold text-indigo-600 mb-2'>Audio File {index + 1}</h3>
+                  {renderTranscriptionContent(transcription.content[index])}
+                </div>
+              ))}
+            </>
           ) : (
             <div className='bg-red-50 p-4 rounded-md'>
               <p className='text-red-700'>

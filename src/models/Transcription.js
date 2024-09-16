@@ -11,9 +11,11 @@ const transcriptionSchema = new mongoose.Schema({
     enum: ['legal', 'meeting'],
     required: true,
   },
-  content: {
-    type: String,
-  },
+  content: [
+    {
+      type: String,
+    },
+  ],
   audioFileUrls: [
     {
       type: String,

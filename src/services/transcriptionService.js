@@ -5,7 +5,6 @@ import {
   generateBlobSASQueryParameters,
   BlobSASPermissions,
 } from '@azure/storage-blob';
-
 import axios from 'axios';
 
 const generateSasUrl = blobName => {
@@ -46,22 +45,113 @@ export const uploadAndTranscribe = async (files, meetingType, userId) => {
       })
     );
 
+    const transcriptionApiUrl = `https://${process.env.VITE_SERVICE_REGION}.api.cognitive.microsoft.com/speechtotext/v3.2/transcriptions`;
+
+    const requestBody = {
+      contentUrls: audioFileUrls,
+      properties: {
+        diarizationEnabled: true,
+        wordLevelTimestampsEnabled: true,
+        punctuationMode: 'DictatedAndAutomatic',
+        profanityFilterMode: 'Masked',
+      },
+      locale: 'en-GB',
+      displayName: `Transcription_${meetingType}_${Date.now()}`,
+    };
+
+    const transcriptionResponse = await axios.post(transcriptionApiUrl, requestBody, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Ocp-Apim-Subscription-Key': process.env.VITE_SPEECH_KEY,
+      },
+    });
+
     const transcription = new Transcription({
       user: userId,
       meetingType,
       audioFileUrls,
-      status: 'pending',
+      status: 'submitted',
+      transcriptionUrl: transcriptionResponse.data.self, // Save the transcription URL
     });
 
     await transcription.save();
 
-    // Start transcription process asynchronously
-    processTranscription(transcription);
-
+    console.log(`Transcription ${transcription._id} submitted successfully`);
     return transcription;
   } catch (error) {
     console.error('Error in uploadAndTranscribe:', error);
     throw error;
+  }
+};
+
+export const checkTranscriptionStatus = async transcription => {
+  try {
+    console.log(`Checking status for transcription: ${transcription._id}`);
+
+    if (!transcription.transcriptionUrl) {
+      console.error(`Transcription URL is undefined for transcription: ${transcription._id}`);
+      transcription.status = 'error';
+      transcription.errorDetails = 'Transcription URL is missing';
+      await transcription.save();
+      return 'error';
+    }
+
+    console.log(`Transcription URL: ${transcription.transcriptionUrl}`);
+
+    const response = await axios.get(transcription.transcriptionUrl, {
+      headers: {
+        'Ocp-Apim-Subscription-Key': process.env.VITE_SPEECH_KEY,
+      },
+    });
+
+    console.log(`Azure response:`, response.data);
+
+    const status = response.data.status;
+    console.log(`Transcription ${transcription._id} status:`, status);
+
+    if (status === 'Succeeded') {
+      console.log(`Transcription ${transcription._id} succeeded, fetching files`);
+      // Fetch the transcription files
+      const filesResponse = await axios.get(response.data.links.files, {
+        headers: {
+          'Ocp-Apim-Subscription-Key': process.env.VITE_SPEECH_KEY,
+        },
+      });
+
+      console.log(`Files response:`, filesResponse.data);
+
+      const transcriptionFiles = filesResponse.data.values.filter(file => file.kind === 'Transcription');
+      const contents = await Promise.all(
+        transcriptionFiles.map(async file => {
+          const contentResponse = await axios.get(file.links.contentUrl, {
+            headers: {
+              'Ocp-Apim-Subscription-Key': process.env.VITE_SPEECH_KEY,
+            },
+          });
+          return JSON.stringify(contentResponse.data);
+        })
+      );
+
+      transcription.content = contents;
+      transcription.status = 'completed';
+      transcription.completedAt = new Date();
+    } else if (status === 'Failed') {
+      transcription.status = 'failed';
+      transcription.errorDetails = 'Transcription failed on Azure service';
+    } else {
+      transcription.status = 'processing';
+    }
+
+    await transcription.save();
+    console.log(`Updated transcription ${transcription._id} status: ${transcription.status}`);
+    return transcription.status;
+  } catch (error) {
+    console.error('Error checking transcription status:', error);
+    console.error('Error details:', error.response?.data);
+    transcription.status = 'error';
+    transcription.errorDetails = `Error checking transcription status: ${error.message}`;
+    await transcription.save();
+    return 'error';
   }
 };
 
