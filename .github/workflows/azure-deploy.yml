@@ -41,6 +41,6 @@ jobs:
           app-name: 'legalscriber-web-app-container'
           images: '${{ secrets.AZURE_CONTAINER_REGISTRY }}/legalscriber:${{ github.sha }}'
 
-      - name: Azure logout
+      - name: Azure logout,
         run: |
           az logout

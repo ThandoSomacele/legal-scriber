@@ -46,9 +46,9 @@ const Header = () => {
 
   // Navigation items for logged in users
   const userNavItems = [
-    { name: 'Dashboard', href: '/dashboard' },
-    { name: 'Transcriptions', href: '/transcriptions' },
-    { name: 'Summaries', href: '/summaries' },
+    // { name: 'Dashboard', href: '/dashboard' },
+    // { name: 'Transcriptions', href: '/transcriptions' },
+    // { name: 'Summaries', href: '/summaries' },
     { name: 'Transcribe', href: '/transcribe' },
   ];
 
