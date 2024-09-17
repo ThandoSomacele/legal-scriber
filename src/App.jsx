@@ -70,14 +70,14 @@ function App() {
               <Route path='/' element={<Home />} />
               <Route path='/signup' element={<SignUp />} />
               <Route path='/login' element={<Login />} />
-              <Route
+              {/* <Route
                 path='/dashboard'
                 element={
                   <ProtectedRoute>
                     <Dashboard />
                   </ProtectedRoute>
                 }
-              />
+              /> */}
               <Route
                 path='/profile'
                 element={
@@ -144,38 +144,38 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              <Route
+              {/* <Route
                 path='/summaries'
                 element={
                   <ProtectedRoute>
                     <Summaries />
                   </ProtectedRoute>
                 }
-              />
-              <Route
+              /> */}
+              {/* <Route
                 path='/summaries/:id'
                 element={
                   <ProtectedRoute>
                     <SummaryEditor />
                   </ProtectedRoute>
                 }
-              />
-              <Route
+              /> */}
+              {/* <Route
                 path='/transcriptions'
                 element={
                   <ProtectedRoute>
                     <Transcriptions />
                   </ProtectedRoute>
                 }
-              />
-              <Route
+              /> */}
+              {/* <Route
                 path='/transcriptions/:id'
                 element={
                   <ProtectedRoute>
                     <TranscriptionDisplay />
                   </ProtectedRoute>
                 }
-              />
+              /> */}
               <Route path='/terms-and-conditions' element={<TermsAndConditions />} />
             </Routes>
           </main>

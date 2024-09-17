@@ -24,7 +24,7 @@ const Login = () => {
     try {
       await login(formData.email, formData.password);
       // Redirect the user to the page they were trying to access, or to the dashboard
-      const from = location.state?.from?.pathname || '/dashboard';
+      const from = location.state?.from?.pathname || '/transcribe';
       navigate(from, { replace: true });
     } catch (error) {
       console.error('Login error:', error);

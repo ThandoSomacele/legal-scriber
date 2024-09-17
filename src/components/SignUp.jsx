@@ -28,7 +28,7 @@ const SignUp = () => {
 
     try {
       await signup(formData.name, formData.email, formData.password);
-      navigate('/dashboard');
+      navigate('/transcribe');
     } catch (error) {
       // Check for specific error message from the server
       if (error.response && error.response.data && error.response.data.message) {
