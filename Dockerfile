@@ -47,6 +47,3 @@ EXPOSE 3001
 
 # Start the server
 CMD ["npm", "start"]
-
-# Default to development stage
-# FROM ${TARGET:-development}
