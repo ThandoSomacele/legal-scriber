@@ -19,6 +19,8 @@ import { AzureOpenAI } from 'openai';
 import { parseString } from 'xml2js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import cron from 'node-cron';
+import Transcription from './src/models/Transcription.js';
 import legalModelContent from './src/lib/legalModelContent.js';
 import standardMeetingModelContent from './src/lib/standardMeetingModelContent.js';
 import envConfig from './envConfig.js';
@@ -184,18 +186,162 @@ async function summariseWithRetry(transcriptionResults, meetingType, maxRetries 
   return fullSummary.trim();
 }
 
-app.post('/upload-and-transcribe', upload.array('files'), async (req, res) => {
-  console.log('Starting file upload process...');
+async function checkAndUpdateTranscriptionStatus(transcription) {
+  console.log(`Checking status for transcription ${transcription._id}`);
+
+  if (!transcription.transcriptionUrl || typeof transcription.transcriptionUrl !== 'string') {
+    console.log(`Skipping transcription ${transcription._id}: Invalid or missing transcriptionUrl`);
+    await Transcription.findByIdAndUpdate(transcription._id, {
+      status: 'error',
+      errorDetails: 'Invalid or missing transcriptionUrl',
+    });
+    return;
+  }
+
   try {
+    console.log(`Fetching status from ${transcription.transcriptionUrl}`);
+    const statusResponse = await axios.get(transcription.transcriptionUrl, {
+      headers: {
+        'Ocp-Apim-Subscription-Key': process.env.VITE_SPEECH_KEY,
+      },
+    });
+
+    let status;
+    let detailedResponse = {};
+
+    if (statusResponse.headers['content-type'].includes('application/xml')) {
+      const result = await new Promise((resolve, reject) => {
+        parseString(statusResponse.data, (err, result) => {
+          if (err) reject(err);
+          else resolve(result);
+        });
+      });
+      status = result.transcription.status[0];
+      detailedResponse = result.transcription;
+    } else {
+      status = statusResponse.data.status;
+      detailedResponse = statusResponse.data;
+    }
+
+    console.log(`Transcription ${transcription._id} status:`, status);
+    console.log('Detailed response:', JSON.stringify(detailedResponse, null, 2));
+
+    let updatedStatus = status;
+    if (status === 'Succeeded') {
+      updatedStatus = 'completed';
+    } else if (status === 'Failed') {
+      updatedStatus = 'failed';
+    } else if (status === 'Running') {
+      updatedStatus = 'processing';
+    }
+
+    await Transcription.findByIdAndUpdate(transcription._id, {
+      status: updatedStatus,
+      detailedResponse: JSON.stringify(detailedResponse),
+    });
+
+    if (updatedStatus === 'completed') {
+      console.log(`Fetching content for completed transcription ${transcription._id}`);
+
+      // Fetch the files list
+      const filesUrl = detailedResponse.links.files;
+      console.log(`Fetching files list from: ${filesUrl}`);
+      const filesResponse = await axios.get(filesUrl, {
+        headers: {
+          'Ocp-Apim-Subscription-Key': process.env.VITE_SPEECH_KEY,
+        },
+      });
+
+      const files = filesResponse.data.values;
+      console.log('Files list:', JSON.stringify(files, null, 2));
+
+      if (!files || files.length === 0) {
+        throw new Error('No transcription files found');
+      }
+
+      // Find the transcription file (usually the one with kind: 'Transcription')
+      const transcriptionFile = files.find(file => file.kind === 'Transcription');
+
+      if (!transcriptionFile) {
+        throw new Error('Transcription file not found in the files list');
+      }
+
+      const contentUrl = transcriptionFile.links.contentUrl;
+      console.log(`Fetching transcription content from URL: ${contentUrl}`);
+
+      const contentResponse = await axios.get(contentUrl, {
+        headers: {
+          'Ocp-Apim-Subscription-Key': process.env.VITE_SPEECH_KEY,
+        },
+      });
+      // Save the content:
+      const content = contentResponse.data;
+      await Transcription.findByIdAndUpdate(transcription._id, {
+        content: JSON.stringify(content),
+        completedAt: new Date(),
+      });
+      console.log(`Content saved for transcription ${transcription._id}`);
+    } else if (updatedStatus === 'failed') {
+      const errorDetails = detailedResponse.properties?.error?.message || 'Unknown error occurred';
+      await Transcription.findByIdAndUpdate(transcription._id, {
+        errorDetails,
+      });
+      console.log(`Transcription ${transcription._id} failed. Error details: ${errorDetails}`);
+    }
+  } catch (error) {
+    let detailedResponse = {};
+
+    console.error(`Error updating transcription ${transcription._id} status:`, error);
+    console.error('Error details:', error.response?.data);
+    console.error('Detailed response:', JSON.stringify(detailedResponse, null, 2));
+    await Transcription.findByIdAndUpdate(transcription._id, {
+      status: 'error',
+      errorDetails: error.message || 'Unknown error occurred',
+    });
+  }
+}
+// Schedule a job to run every minute
+cron.schedule('* * * * *', async () => {
+  console.log('Running transcription status check...');
+  try {
+    const pendingTranscriptions = await Transcription.find({
+      status: { $in: ['pending', 'processing', 'submitted'] },
+      transcriptionUrl: { $exists: true, $ne: null },
+    });
+
+    console.log(`Found ${pendingTranscriptions.length} pending transcriptions`);
+
+    for (const transcription of pendingTranscriptions) {
+      await checkAndUpdateTranscriptionStatus(transcription);
+    }
+  } catch (error) {
+    console.error('Error in cron job:', error);
+  }
+});
+
+app.post('/upload-and-transcribe', upload.array('files'), async (req, res) => {
+  console.log('Starting file upload and transcription process...');
+  try {
+    const { meetingType } = req.body;
+    const userId = req.user.id;
+
+    if (!req.files || req.files.length === 0) {
+      console.log('No files uploaded');
+      return res.status(400).json({ message: 'No files uploaded' });
+    }
+
+    console.log(`Uploading ${req.files.length} file(s) for ${meetingType} transcription`);
+
     const uploadedFiles = [];
-    const meetingType = req.body.meetingType || 'legal'; // Default to 'legal' if not provided
 
     for (const file of req.files) {
+      console.log(`Uploading file: ${file.originalname}`);
       const blobName = `${Date.now()}-${file.originalname}`;
       const blockBlobClient = containerClient.getBlockBlobClient(blobName);
       await blockBlobClient.upload(file.buffer, file.buffer.length);
       const blobUrl = generateSasUrl(blobName);
       uploadedFiles.push(blobUrl);
+      console.log(`File uploaded successfully: ${blobName}`);
     }
 
     console.log('All files uploaded successfully');
@@ -211,7 +357,7 @@ app.post('/upload-and-transcribe', upload.array('files'), async (req, res) => {
         profanityFilterMode: 'Masked',
       },
       locale: 'en-GB',
-      displayName: `Transcription_${meetingType}_${Date.now()}`, // Include meetingType in the display name
+      displayName: `Transcription_${meetingType}_${Date.now()}`,
     };
 
     console.log('Sending transcription request to Azure...');
@@ -224,9 +370,21 @@ app.post('/upload-and-transcribe', upload.array('files'), async (req, res) => {
     });
 
     console.log('Transcription request successful');
+    console.log('Transcription URL:', transcriptionResponse.data.self);
 
-    // Store the meetingType along with the transcriptionUrl in the response
+    // Save the transcription to the database
+    const transcription = new Transcription({
+      user: userId,
+      meetingType,
+      status: 'processing',
+      transcriptionUrl: transcriptionResponse.data.self,
+    });
+
+    await transcription.save();
+    console.log('Transcription saved to database with ID:', transcription._id);
+
     res.json({
+      transcriptionId: transcription._id,
       transcriptionUrl: transcriptionResponse.data.self,
       meetingType: meetingType,
     });

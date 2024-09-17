@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -23,7 +23,31 @@ function App() {
   const [summaryId, setSummaryId] = useState(null);
   const [meetingType, setMeetingType] = useState('legal');
 
+  useEffect(() => {
+    // Load stored transcription and summary IDs on component mount
+    const storedTranscription = localStorage.getItem('transcription');
+    const storedSummary = localStorage.getItem('summary');
+
+    if (storedTranscription) {
+      const parsedTranscription = JSON.parse(storedTranscription);
+      setTranscriptionId(parsedTranscription._id);
+      setMeetingType(parsedTranscription.meetingType);
+    }
+
+    if (storedSummary) {
+      const parsedSummary = JSON.parse(storedSummary);
+      setSummaryId(parsedSummary._id);
+    }
+  }, []);
+
   const handleTranscriptionCreated = (id, type) => {
+    // Clear previous transcription and summary data
+    setTranscriptionId(null);
+    setSummaryId(null);
+    localStorage.removeItem('transcription');
+    localStorage.removeItem('summary');
+
+    // Set new transcription data
     setTranscriptionId(id);
     setMeetingType(type);
   };
@@ -82,7 +106,7 @@ function App() {
                 path='/transcribe'
                 element={
                   <ProtectedRoute>
-                    <div className='flex flex-col space-y-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
+                    <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8'>
                       <div className='bg-white shadow-md rounded-lg p-6'>
                         <h2 className='text-2xl font-semibold text-indigo-700 mb-4'>Select Meeting Type</h2>
                         <div className='flex space-x-4'>
@@ -110,14 +134,12 @@ function App() {
                         onTranscriptionCreated={handleTranscriptionCreated}
                         meetingType={meetingType}
                       />
-                      {transcriptionId && (
-                        <TranscriptionDisplay
-                          transcriptionId={transcriptionId}
-                          onSummaryGenerated={handleSummaryGenerated}
-                          meetingType={meetingType}
-                        />
-                      )}
-                      {summaryId && <SummaryEditor summaryId={summaryId} meetingType={meetingType} />}
+                      <TranscriptionDisplay
+                        transcriptionId={transcriptionId}
+                        onSummaryGenerated={handleSummaryGenerated}
+                        meetingType={meetingType}
+                      />
+                      <SummaryEditor summaryId={summaryId} meetingType={meetingType} />
                     </div>
                   </ProtectedRoute>
                 }

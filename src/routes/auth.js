@@ -8,7 +8,6 @@ import User from '../models/User.js';
 const router = express.Router();
 
 router.post('/signup', async (req, res) => {
-  console.log('Signup request received:', req.body);
   try {
     const { name, email, password } = req.body;
 

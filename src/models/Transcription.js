@@ -11,10 +11,11 @@ const transcriptionSchema = new mongoose.Schema({
     enum: ['legal', 'meeting'],
     required: true,
   },
-  content: {
-    type: String,
-    required: true,
-  },
+  content: [
+    {
+      type: String,
+    },
+  ],
   audioFileUrls: [
     {
       type: String,
@@ -23,8 +24,20 @@ const transcriptionSchema = new mongoose.Schema({
   ],
   status: {
     type: String,
-    enum: ['pending', 'completed', 'failed'],
+    enum: ['pending', 'processing', 'completed', 'failed', 'error', 'submitted'],
     default: 'pending',
+  },
+  transcriptionUrl: {
+    type: String,
+  },
+  detailedResponse: {
+    type: String,
+  },
+  errorDetails: {
+    type: String,
+  },
+  completedAt: {
+    type: Date,
   },
   createdAt: {
     type: Date,

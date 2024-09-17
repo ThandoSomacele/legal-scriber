@@ -1,5 +1,3 @@
-// src/components/MultiAudioUploader.jsx
-
 import React, { useState, useRef } from 'react';
 import { Upload, X, Loader, AlertCircle } from 'lucide-react';
 import apiClient from '../apiClient';
@@ -8,7 +6,45 @@ const MultiAudioUploader = ({ onTranscriptionCreated, meetingType }) => {
   const [audioFiles, setAudioFiles] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef(null);
+
+  const handleSubmit = async event => {
+    event.preventDefault();
+    if (audioFiles.length === 0) {
+      setError('Please upload at least one audio file before transcribing.');
+      return;
+    }
+    setIsSubmitting(true);
+    setError(null);
+    setUploadProgress(0);
+    try {
+      const formData = new FormData();
+      audioFiles.forEach(file => formData.append('files', file));
+      formData.append('meetingType', meetingType);
+
+      // Clear localStorage before starting a new transcription
+      localStorage.removeItem('transcription');
+      localStorage.removeItem('summary');
+
+      const response = await apiClient.post('/api/transcriptions', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        onUploadProgress: progressEvent => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(percentCompleted);
+        },
+      });
+      console.log('Transcription created:', response.data);
+      onTranscriptionCreated(response.data.transcriptionId, meetingType);
+    } catch (error) {
+      console.error('Transcription error:', error);
+      setError(`An error occurred during transcription: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleFileChange = event => {
     const files = Array.from(event.target.files);
@@ -21,29 +57,6 @@ const MultiAudioUploader = ({ onTranscriptionCreated, meetingType }) => {
 
   const removeFile = index => {
     setAudioFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
-  };
-
-  const handleSubmit = async event => {
-    event.preventDefault();
-    if (audioFiles.length === 0) {
-      setError('Please upload at least one audio file before transcribing.');
-      return;
-    }
-    setIsSubmitting(true);
-    setError(null);
-    try {
-      const formData = new FormData();
-      audioFiles.forEach(file => formData.append('files', file));
-      formData.append('meetingType', meetingType);
-
-      const response = await apiClient.post('/api/transcriptions', formData);
-      onTranscriptionCreated(response.data.transcriptionId, meetingType);
-    } catch (error) {
-      console.error('Transcription error:', error);
-      setError(`An error occurred during transcription: ${error.message}`);
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   return (
@@ -88,6 +101,18 @@ const MultiAudioUploader = ({ onTranscriptionCreated, meetingType }) => {
               </button>
             </div>
           ))}
+        </div>
+      )}
+
+      {isSubmitting && (
+        <div className='my-4'>
+          <div className='flex items-center'>
+            <Loader className='animate-spin mr-2' size={18} />
+            <span>Uploading and processing... {uploadProgress}%</span>
+          </div>
+          <div className='w-full bg-gray-200 rounded-full h-2.5 mt-2'>
+            <div className='bg-indigo-600 h-2.5 rounded-full' style={{ width: `${uploadProgress}%` }}></div>
+          </div>
         </div>
       )}
 
