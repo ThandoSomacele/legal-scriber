@@ -1,14 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Menu, X, User, ChevronDown } from 'lucide-react';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
-import { Link as ScrollLink } from 'react-scroll';
 import { useAuth } from '../../contexts/AuthContext';
 
 const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const location = useLocation();
-  const navigate = useNavigate();
   const userMenuRef = useRef(null);
   const { user, logout } = useAuth();
 
@@ -62,27 +60,37 @@ const Header = () => {
   const linkStyle = 'text-base font-medium text-gray-500 hover:text-gray-900';
 
   // Render the appropriate link based on whether it's a section on the home page or a separate page
-  const renderNavLink = item => {
-    if (location.pathname === '/') {
-      return (
-        <ScrollLink
-          to={item.href}
-          spy={true}
-          smooth={true}
-          offset={-70} // Adjust this value based on your header height
-          duration={500}
-          className='text-base text-gray-300 hover:text-white cursor-pointer'>
-          {item.name}
-        </ScrollLink>
-      );
-    } else {
-      return (
-        <RouterLink to={`/#${item.name}`} className='text-base text-gray-300 hover:text-white'>
-          {item.name}
-        </RouterLink>
-      );
+  const navigate = useNavigate();
+
+  // Function to scroll to a specific element by ID
+  const scrollToElement = id => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
     }
-    an;
+  };
+
+  // Render the appropriate link that always navigates and scrolls to the section on the Home page
+  const renderNavLink = item => {
+    return (
+      <RouterLink
+        to={`/#${item.href}`}
+        className={`${linkStyle} cursor-pointer`}
+        onClick={e => {
+          e.preventDefault();
+          if (location.pathname !== '/') {
+            // If not on home page, navigate to home page with hash
+            navigate(`/#${item.href}`);
+            // After navigation, scroll to the element (needs a slight delay to ensure DOM is updated)
+            setTimeout(() => scrollToElement(item.href), 100);
+          } else {
+            // If already on home page, just scroll to the element
+            scrollToElement(item.href);
+          }
+        }}>
+        {item.name}
+      </RouterLink>
+    );
   };
 
   return (

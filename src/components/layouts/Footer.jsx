@@ -1,7 +1,6 @@
 import React from 'react';
 import { Facebook, Twitter, Instagram, Link } from 'lucide-react';
-import { Link as RouterLink, useLocation } from 'react-router-dom';
-import { Link as ScrollLink } from 'react-scroll';
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -24,27 +23,41 @@ const Footer = () => {
     { name: 'LinkedIn', icon: Link, href: 'https://linkedin.com' },
   ];
 
-  // Function to render the appropriate link type
-  const renderLink = item => {
-    if (location.pathname === '/') {
-      return (
-        <ScrollLink
-          to={item.href}
-          spy={true}
-          smooth={true}
-          offset={-70} // Adjust this value based on your header height
-          duration={500}
-          className='text-base text-gray-300 hover:text-white cursor-pointer'>
-          {item.name}
-        </ScrollLink>
-      );
-    } else {
-      return (
-        <RouterLink to={`/#${item.name}`} className='text-base text-gray-300 hover:text-white'>
-          {item.name}
-        </RouterLink>
-      );
+  // Common link style
+  const linkStyle = 'text-base text-gray-300 hover:text-white cursor-pointer';
+
+  // Render the appropriate link based on whether it's a section on the home page or a separate page
+  const navigate = useNavigate();
+
+  // Function to scroll to a specific element by ID
+  const scrollToElement = id => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
     }
+  };
+
+  // Render the appropriate link that always navigates and scrolls to the section on the Home page
+  const renderNavLink = item => {
+    return (
+      <RouterLink
+        to={`/#${item.href}`}
+        className={`${linkStyle} cursor-pointer`}
+        onClick={e => {
+          e.preventDefault();
+          if (location.pathname !== '/') {
+            // If not on home page, navigate to home page with hash
+            navigate(`/#${item.href}`);
+            // After navigation, scroll to the element (needs a slight delay to ensure DOM is updated)
+            setTimeout(() => scrollToElement(item.href), 100);
+          } else {
+            // If already on home page, just scroll to the element
+            scrollToElement(item.href);
+          }
+        }}>
+        {item.name}
+      </RouterLink>
+    );
   };
 
   return (
@@ -73,7 +86,7 @@ const Footer = () => {
                 <h3 className='text-sm font-semibold text-gray-200 tracking-wider uppercase'>Company</h3>
                 <ul role='list' className='mt-4 space-y-4'>
                   {footerLinks.slice(0, 4).map(item => (
-                    <li key={item.name}>{renderLink(item)}</li>
+                    <li key={item.name}>{renderNavLink(item)}</li>
                   ))}
                 </ul>
               </div>
@@ -81,7 +94,7 @@ const Footer = () => {
                 <h3 className='text-sm font-semibold text-gray-200 tracking-wider uppercase'>Legal</h3>
                 <ul role='list' className='mt-4 space-y-4'>
                   {footerLinks.slice(4).map(item => (
-                    <li key={item.name}>{renderLink(item)}</li>
+                    <li key={item.name}>{renderNavLink(item)}</li>
                   ))}
                 </ul>
               </div>
