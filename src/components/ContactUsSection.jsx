@@ -98,9 +98,19 @@ const ContactUsSection = () => {
               <dl>
                 <div className='bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6'>
                   <dt className='text-sm font-medium text-gray-500 flex items-center'>
-                    <Phone className='h-5 w-5 mr-2' /> Phone
+                    <Phone className='h-5 w-5 mr-2' /> Founder Email
                   </dt>
-                  <dd className='mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2'>0722251491</dd>
+                  <dd className='mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2'>
+                    <a href='mailto:thando@legalscriber.co.za'>thando@legalscriber.co.za</a>
+                  </dd>
+                </div>
+                <div className='bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6'>
+                  <dt className='text-sm font-medium text-gray-500 flex items-center'>
+                    <Phone className='h-5 w-5 mr-2' /> Founder Phone
+                  </dt>
+                  <dd className='mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2'>
+                    <a href='tel:27722251491'>+27 722-251-491</a>
+                  </dd>
                 </div>
                 <div className='bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6'>
                   <dt className='text-sm font-medium text-gray-500 flex items-center'>
@@ -110,9 +120,11 @@ const ContactUsSection = () => {
                 </div>
                 <div className='bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6'>
                   <dt className='text-sm font-medium text-gray-500 flex items-center'>
-                    <Mail className='h-5 w-5 mr-2' /> Email
+                    <Mail className='h-5 w-5 mr-2' /> Sales Email
                   </dt>
-                  <dd className='mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2'>sales@legalscriber.co.za</dd>
+                  <dd className='mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2'>
+                    <a href='mailto:sales@legalscriber.co.za'>sales@legalscriber.co.za</a>
+                  </dd>
                 </div>
               </dl>
             </div>

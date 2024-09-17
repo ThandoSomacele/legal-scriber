@@ -63,26 +63,26 @@ const Header = () => {
 
   // Render the appropriate link based on whether it's a section on the home page or a separate page
   const renderNavLink = item => {
-    if (location.pathname === '/' && !item.href.startsWith('/')) {
+    if (location.pathname === '/') {
       return (
         <ScrollLink
-          key={item.name}
           to={item.href}
           spy={true}
           smooth={true}
-          offset={-70}
+          offset={-70} // Adjust this value based on your header height
           duration={500}
-          className={`${linkStyle} cursor-pointer`}>
+          className='text-base text-gray-300 hover:text-white cursor-pointer'>
           {item.name}
         </ScrollLink>
       );
     } else {
       return (
-        <RouterLink key={item.name} to={item.href} className={linkStyle}>
+        <RouterLink to={`/#${item.name}`} className='text-base text-gray-300 hover:text-white'>
           {item.name}
         </RouterLink>
       );
     }
+    an;
   };
 
   return (
