@@ -1,4 +1,5 @@
 import React from 'react';
+import heroImage from '../assets/images/home/pexels-divinetechygirl-1181555.webp';
 
 export default function HeroSection() {
   return (
@@ -7,11 +8,7 @@ export default function HeroSection() {
       <div className='max-w-7xl mx-auto sm:px-6 lg:px-8'>
         <div className='relative shadow-xl sm:rounded-2xl sm:overflow-hidden'>
           <div className='absolute inset-0'>
-            <img
-              className='h-full w-full object-cover'
-              src='/src/assets/images/home/pexels-divinetechygirl-1181555.webp'
-              alt='A women working on a laptop'
-            />
+            <img className='h-full w-full object-cover' src={heroImage} alt='A women working on a laptop' />
             <div className='absolute inset-0 bg-indigo-700 mix-blend-multiply'></div>
           </div>
           <div className='relative px-4 py-16 sm:px-6 sm:py-24 lg:py-32 lg:px-8'>

@@ -8,14 +8,14 @@ const AboutUsSection = () => {
     // {
     //   name: 'Sharon',
     //   role: 'Co-founder & Legal Expert',
-    //   image: '/src/assets/images/founders/sharon-somacele.webp',
+    //   image: sharonImg,
     //   description:
     //     'With a distinguished degree in Law, Sharon brings a wealth of legal knowledge to Legal Scriber. Her expertise ensures our AI solutions are grounded in solid legal principles.',
     // },
     {
       name: 'Thando Somacele',
       role: 'Co-founder & Tech Innovator',
-      image: '/src/assets/images/founders/thando-somacele.webp',
+      image: thandoImg,
       description:
         'A seasoned developer with over a decade of coding experience, Thando holds certifications from Microsoft and Udemy. His technical prowess drives the innovative AI behind Legal Scriber.',
     },
