@@ -8,10 +8,10 @@ const Footer = () => {
 
   const footerLinks = [
     { name: 'Home', href: '/' },
-    { name: 'Features', href: 'features' },
-    { name: 'Pricing', href: 'pricing' },
-    { name: 'About Us', href: 'about' },
-    { name: 'Contact', href: 'contact' },
+    { type: 'home-section', name: 'Features', href: 'features' },
+    { type: 'home-section', name: 'Pricing', href: 'pricing' },
+    { type: 'home-section', name: 'About Us', href: 'about' },
+    { type: 'home-section', name: 'Contact', href: 'contact' },
     { name: 'Privacy Policy', href: '/privacy-policy' },
     { name: 'Terms and Conditions', href: '/terms-and-conditions' },
   ];
@@ -41,18 +41,18 @@ const Footer = () => {
   const renderNavLink = item => {
     return (
       <RouterLink
-        to={`/#${item.href}`}
+        to={item.type === 'home-section' ? `/#${item.href}` : item.href}
         className={`${linkStyle} cursor-pointer`}
         onClick={e => {
           e.preventDefault();
-          if (location.pathname !== '/') {
-            // If not on home page, navigate to home page with hash
+          if (item.type === 'home-section') {
+            // If item is a home-section, navigate to home page with hash
             navigate(`/#${item.href}`);
             // After navigation, scroll to the element (needs a slight delay to ensure DOM is updated)
             setTimeout(() => scrollToElement(item.href), 100);
           } else {
-            // If already on home page, just scroll to the element
-            scrollToElement(item.href);
+            // Jsut navigate to that route
+            navigate(item.href);
           }
         }}>
         {item.name}

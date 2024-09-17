@@ -36,7 +36,7 @@ const MultiAudioUploader = ({ onTranscriptionCreated, meetingType }) => {
           setUploadProgress(percentCompleted);
         },
       });
-      console.log('Transcription created:', response.data);
+      // console.log('Transcription created:', response.data);
       onTranscriptionCreated(response.data.transcriptionId, meetingType);
     } catch (error) {
       console.error('Transcription error:', error);

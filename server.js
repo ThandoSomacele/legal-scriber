@@ -224,7 +224,7 @@ async function checkAndUpdateTranscriptionStatus(transcription) {
     }
 
     console.log(`Transcription ${transcription._id} status:`, status);
-    console.log('Detailed response:', JSON.stringify(detailedResponse, null, 2));
+    // console.log('Detailed response:', JSON.stringify(detailedResponse, null, 2));
 
     let updatedStatus = status;
     if (status === 'Succeeded') {
@@ -253,7 +253,7 @@ async function checkAndUpdateTranscriptionStatus(transcription) {
       });
 
       const files = filesResponse.data.values;
-      console.log('Files list:', JSON.stringify(files, null, 2));
+      // console.log('Files list:', JSON.stringify(files, null, 2));
 
       if (!files || files.length === 0) {
         throw new Error('No transcription files found');

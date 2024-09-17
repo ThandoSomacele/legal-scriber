@@ -104,7 +104,7 @@ export const checkTranscriptionStatus = async transcription => {
       },
     });
 
-    console.log(`Azure response:`, response.data);
+    // console.log(`Azure response:`, response.data);
 
     const status = response.data.status;
     console.log(`Transcription ${transcription._id} status:`, status);
@@ -118,7 +118,7 @@ export const checkTranscriptionStatus = async transcription => {
         },
       });
 
-      console.log(`Files response:`, filesResponse.data);
+      // console.log(`Files response:`, filesResponse.data);
 
       const transcriptionFiles = filesResponse.data.values.filter(file => file.kind === 'Transcription');
       const contents = await Promise.all(

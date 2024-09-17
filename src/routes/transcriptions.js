@@ -34,7 +34,7 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ message: 'Transcription not found' });
     }
 
-    console.log(`Found transcription: ${JSON.stringify(transcription)}`);
+    // console.log(`Found transcription: ${JSON.stringify(transcription)}`);
 
     // If the transcription is still processing or submitted, check its status
     if (transcription.status === 'processing' || transcription.status === 'submitted') {

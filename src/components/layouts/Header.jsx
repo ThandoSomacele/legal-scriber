@@ -1,12 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Menu, X, User, ChevronDown } from 'lucide-react';
-import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
 const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const location = useLocation();
   const userMenuRef = useRef(null);
   const { user, logout } = useAuth();
 
@@ -39,10 +38,10 @@ const Header = () => {
 
   // Navigation items for logged out users (marketing)
   const marketingNavItems = [
-    { name: 'Features', href: 'features' },
-    { name: 'Pricing', href: 'pricing' },
-    { name: 'About Us', href: 'about' },
-    { name: 'Contact', href: 'contact' },
+    { type: 'home-section', name: 'Features', href: 'features' },
+    { type: 'home-section', name: 'Pricing', href: 'pricing' },
+    { type: 'home-section', name: 'About Us', href: 'about' },
+    { type: 'home-section', name: 'Contact', href: 'contact' },
   ];
 
   // Navigation items for logged in users
@@ -56,10 +55,6 @@ const Header = () => {
   // Determine which nav items to use based on login state
   const navItems = user ? userNavItems : marketingNavItems;
 
-  // Common link style
-  const linkStyle = 'text-base font-medium text-gray-500 hover:text-gray-900';
-
-  // Render the appropriate link based on whether it's a section on the home page or a separate page
   const navigate = useNavigate();
 
   // Function to scroll to a specific element by ID
@@ -70,22 +65,25 @@ const Header = () => {
     }
   };
 
-  // Render the appropriate link that always navigates and scrolls to the section on the Home page
+  // Common link style
+  const linkStyle = 'text-base font-medium text-gray-500 hover:text-gray-900';
+
+  // Render the appropriate link based on whether it's a home-section on the home page or a separate page
   const renderNavLink = item => {
     return (
       <RouterLink
-        to={`/#${item.href}`}
+        to={item.type === 'home-section' ? `/#${item.href}` : item.href}
         className={`${linkStyle} cursor-pointer`}
         onClick={e => {
           e.preventDefault();
-          if (location.pathname !== '/') {
-            // If not on home page, navigate to home page with hash
+          if (item.type === 'home-section') {
+            // If item is a home-section, navigate to home page with hash
             navigate(`/#${item.href}`);
             // After navigation, scroll to the element (needs a slight delay to ensure DOM is updated)
             setTimeout(() => scrollToElement(item.href), 100);
           } else {
-            // If already on home page, just scroll to the element
-            scrollToElement(item.href);
+            // Jsut navigate to that route
+            navigate(item.href);
           }
         }}>
         {item.name}
