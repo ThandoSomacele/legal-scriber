@@ -12,6 +12,7 @@ import Summaries from './components/Summaries';
 import Transcriptions from './components/Transcriptions';
 import Footer from './components/layouts/Footer';
 import TermsAndConditions from './components/TermsAndConditions';
+import PrivacyPolicy from './components/PrivacyPolicy';
 import SignUp from './components/SignUp';
 import Login from './components/Login';
 import UserProfile from './components/UserProfile';
@@ -177,6 +178,7 @@ function App() {
                 }
               /> */}
               <Route path='/terms-and-conditions' element={<TermsAndConditions />} />
+              <Route path='/privacy-policy' element={<PrivacyPolicy />} />
             </Routes>
           </main>
           <Footer />

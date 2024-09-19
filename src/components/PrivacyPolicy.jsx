@@ -70,8 +70,8 @@ const PrivacyPolicy = () => {
 
           <h2>7. Contact Us</h2>
           <p>If you have any questions about this privacy policy or our privacy practices, please contact us at:</p>
-          <p>Email: sales@legalscriber.co.za</p>
-          <p>Phone: 0722251491</p>
+          <p>Email: thando@legalscriber.co.za</p>
+          <p>Phone: +27 722 251 491</p>
           <p>Address: Fourways, Sandton</p>
         </div>
       </div>
