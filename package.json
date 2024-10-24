@@ -4,8 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "concurrently \"nodemon server.js\" \"vite --host\"",
+    "verify-env": "node scripts/verify-env.js",
+    "dev": "npm run verify-env && concurrently \"nodemon server.js\" \"vite --host\"",
+    "start": "npm run verify-env && node server.js",
     "build": "vite build",
     "docker:dev": "docker compose down --remove-orphans && docker compose build dev && docker compose up dev",
     "docker:build": "docker compose -f docker-compose.yml -f docker-compose.prod.yml build prod && docker tag legal-scriber-prod:latest thandosomacele/legal-scriber-prod:latest",

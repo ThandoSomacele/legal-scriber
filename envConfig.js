@@ -1,6 +1,6 @@
 let envConfig = {
   development: {
-    apiUrl: 'http://localhost:3001',
+    apiUrl: 'http://localhost:8000',
     frontendUrl: 'http://localhost:5173',
   },
   production: {

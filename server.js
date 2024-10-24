@@ -1,9 +1,26 @@
-import express from 'express';
 import dotenv from 'dotenv';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+
+// Load environment variables at the very start
+const __dirname = dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: join(__dirname, '.env') });
+
+// Add environment variable verification
+const requiredVars = ['AZURE_OPENAI_API_KEY', 'AZURE_OPENAI_ENDPOINT', 'COSMOSDB_CONNECTION_STRING'];
+
+const missingVars = requiredVars.filter(varName => !process.env[varName]);
+if (missingVars.length > 0) {
+  console.error('Missing required environment variables:', missingVars);
+  process.exit(1);
+}
+
+import express from 'express';
 import authRoutes from './src/routes/auth.js';
 import transcriptionRoutes from './src/routes/transcriptions.js';
 import summaryRoutes from './src/routes/summaries.js';
 import userRoutes from './src/routes/user.js';
+import subscriptionRoutes from './src/routes/subscription.js';
 import multer from 'multer';
 import {
   BlobServiceClient,
@@ -18,7 +35,6 @@ import { EventEmitter } from 'events';
 import { AzureOpenAI } from 'openai';
 import { parseString } from 'xml2js';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import cron from 'node-cron';
 import Transcription from './src/models/Transcription.js';
 import legalModelContent from './src/lib/legalModelContent.js';
@@ -27,6 +43,12 @@ import envConfig from './envConfig.js';
 import dbConnect from './src/db.js';
 
 dotenv.config();
+
+// Add this for debugging
+console.log('Azure OpenAI Configuration:', {
+  apiKey: process.env.AZURE_OPENAI_API_KEY ? 'Set' : 'Not Set',
+  endpoint: process.env.AZURE_OPENAI_ENDPOINT,
+});
 
 dbConnect();
 
@@ -48,16 +70,13 @@ app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/transcriptions', transcriptionRoutes);
 app.use('/api/summaries', summaryRoutes);
+app.use('/api/subscription', subscriptionRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).send('Something went wrong!');
 });
-
-// Get __dirname equivalent in ES module
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 EventEmitter.defaultMaxListeners = 15;
 
@@ -469,11 +488,45 @@ console.log('Starting server.js');
 console.log('Environment:', process.env.NODE_ENV);
 console.log('API URL:', envConfig.apiUrl);
 
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK' });
+app.get('/api/health', async (req, res) => {
+  try {
+    // Check MongoDB connection
+    const isMongoConnected = mongoose.connection.readyState === 1;
+
+    // Check OpenAI client
+    const isOpenAIConfigured = !!process.env.AZURE_OPENAI_API_KEY;
+
+    res.json({
+      status: 'OK',
+      services: {
+        database: isMongoConnected ? 'connected' : 'disconnected',
+        openai: isOpenAIConfigured ? 'configured' : 'not configured',
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      error: error.message,
+    });
+  }
 });
 
-const port = process.env.PORT || 3001;
+// server.js - Add this route after your other routes
+app.get('/api/db-health', async (req, res) => {
+  try {
+    // Try to ping the database
+    await mongoose.connection.db.admin().ping();
+    res.json({ status: 'ok', message: 'Database connected' });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Database connection failed',
+      error: error.message,
+    });
+  }
+});
+
+const port = process.env.PORT || 8000;
 
 app.listen(port, '0.0.0.0', () => {
   console.log(`Server is running on port ${port}`);
