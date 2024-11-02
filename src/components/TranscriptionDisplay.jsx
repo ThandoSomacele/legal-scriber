@@ -1,42 +1,102 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { FileText, Loader, AlertCircle, Lightbulb, Mic, Clock, Timer } from 'lucide-react';
 import apiClient from '../apiClient';
 import Disclaimer from './Disclaimer';
 
+// Separate ProcessingStatus component with proper state management
+const ProcessingStatus = ({ estimatedTime, audioFilesCount, calculateEstimatedTime }) => {
+  // Use refs for intervals to prevent memory leaks
+  const dotsRef = useRef('');
+  const [dots, setDots] = useState('');
+
+  // Handle dots animation with useEffect
+  useEffect(() => {
+    const interval = setInterval(() => {
+      dotsRef.current = dotsRef.current.length >= 3 ? '' : dotsRef.current + '.';
+      setDots(dotsRef.current);
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Format time display
+  const formatTimeRemaining = seconds => {
+    if (!seconds) return '';
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return seconds < 60
+      ? `About ${seconds} seconds remaining`
+      : `About ${minutes}:${remainingSeconds.toString().padStart(2, '0')} minutes remaining`;
+  };
+
+  // Calculate progress percentage
+  const progress = Math.max(10, Math.min(90, 100 - (estimatedTime / calculateEstimatedTime(audioFilesCount)) * 100));
+
+  return (
+    <div className='bg-indigo-50 p-6 rounded-lg'>
+      <div className='flex flex-col items-center space-y-4'>
+        {/* Animated microphone icon */}
+        <div className='relative'>
+          <div className='absolute inset-0 bg-indigo-200 rounded-full animate-ping opacity-25'></div>
+          <Mic className='w-12 h-12 text-indigo-600 relative z-10 animate-pulse' />
+        </div>
+
+        <div className='space-y-2 text-center'>
+          <h3 className='text-lg font-medium text-indigo-700'>Processing Audio{dots}</h3>
+          <p className='text-sm text-indigo-600'>Converting your audio to text</p>
+
+          {/* Time remaining display */}
+          <div className='flex items-center justify-center text-sm text-indigo-500 mt-2'>
+            <Timer className='w-4 h-4 mr-1' />
+            <span>{formatTimeRemaining(estimatedTime)}</span>
+          </div>
+
+          {/* File count indicator */}
+          <div className='text-xs text-indigo-400 mt-1'>
+            {audioFilesCount > 1 ? `Processing ${audioFilesCount} audio files` : 'Processing audio file'}
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div className='w-full max-w-md h-2 bg-indigo-100 rounded-full overflow-hidden'>
+          <div
+            className='h-full bg-indigo-600 rounded-full transition-all duration-1000'
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+
+        {/* Bouncing dots animation */}
+        <div className='flex space-x-2'>
+          {[...Array(3)].map((_, i) => (
+            <div
+              key={i}
+              className='w-2 h-2 bg-indigo-600 rounded-full animate-bounce'
+              style={{ animationDelay: `${i * 0.2}s` }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType }) => {
+  // Existing state declarations
   const [transcription, setTranscription] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
-  const [progressDots, setProgressDots] = useState('');
   const [estimatedTime, setEstimatedTime] = useState(null);
   const [startTime, setStartTime] = useState(null);
 
   // Calculate estimated completion time
-  const calculateEstimatedTime = useCallback(audioUrls => {
-    // Rough estimation:
-    // - Base processing time: 30 seconds
-    // - Per file processing time: 20 seconds
-    // - Processing ratio: Real-time duration × 0.5 (half of audio length)
-    const baseTime = 30; // seconds
-    const perFileTime = 20; // seconds
-    const processingRatio = 0.5;
-
-    // Calculate total files processing time
-    const totalFiles = audioUrls?.length || 0;
-    const filesProcessingTime = totalFiles * perFileTime;
-
-    // Set initial rough estimate
-    let initialEstimate = baseTime + filesProcessingTime;
-    setEstimatedTime(initialEstimate);
-
-    // Start the processing timer
-    setStartTime(Date.now());
-
-    return initialEstimate;
+  const calculateEstimatedTime = useCallback(audioUrlsCount => {
+    const baseTime = 30; // Base processing time in seconds
+    const perFileTime = 20; // Per file processing time in seconds
+    return baseTime + audioUrlsCount * perFileTime;
   }, []);
 
-  // Update remaining time
+  // Update remaining time using useEffect
   useEffect(() => {
     let interval;
     if (
@@ -53,86 +113,14 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
     return () => clearInterval(interval);
   }, [startTime, estimatedTime, transcription?.status]);
 
-  // Initialize estimation when transcription starts
+  // Initialize timer when transcription starts
   useEffect(() => {
     if (transcription?.audioFileUrls && !startTime) {
-      calculateEstimatedTime(transcription.audioFileUrls);
+      const initialEstimate = calculateEstimatedTime(transcription.audioFileUrls.length);
+      setEstimatedTime(initialEstimate);
+      setStartTime(Date.now());
     }
-  }, [transcription?.audioFileUrls, calculateEstimatedTime, startTime]);
-
-  // Format time display
-  const formatTimeRemaining = seconds => {
-    if (!seconds) return '';
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return seconds < 60
-      ? `About ${seconds} seconds remaining`
-      : `About ${minutes}:${remainingSeconds.toString().padStart(2, '0')} minutes remaining`;
-  };
-
-  // Processing status component with time estimation
-  const ProcessingStatus = () => (
-    <div className='bg-indigo-50 p-6 rounded-lg'>
-      <div className='flex flex-col items-center space-y-4'>
-        <div className='relative'>
-          <div className='absolute inset-0 bg-indigo-200 rounded-full animate-ping opacity-25'></div>
-          <Mic className='w-12 h-12 text-indigo-600 relative z-10 animate-pulse' />
-        </div>
-
-        <div className='space-y-2 text-center'>
-          <h3 className='text-lg font-medium text-indigo-700'>Processing Audio{progressDots}</h3>
-          <p className='text-sm text-indigo-600'>Converting your audio to text</p>
-
-          {/* Estimated Time Display */}
-          <div className='flex items-center justify-center text-sm text-indigo-500 mt-2'>
-            <Timer className='w-4 h-4 mr-1' />
-            <span>{formatTimeRemaining(estimatedTime)}</span>
-          </div>
-
-          {/* Processing Progress Indicator */}
-          <div className='text-xs text-indigo-400 mt-1'>
-            {transcription?.audioFileUrls?.length > 1
-              ? `Processing ${transcription.audioFileUrls.length} audio files`
-              : 'Processing audio file'}
-          </div>
-        </div>
-
-        {/* Progress bar */}
-        <div className='w-full max-w-md h-2 bg-indigo-100 rounded-full overflow-hidden'>
-          <div
-            className='h-full bg-indigo-600 rounded-full transition-all duration-1000'
-            style={{
-              width: `${Math.max(
-                10,
-                Math.min(90, 100 - (estimatedTime / calculateEstimatedTime(transcription?.audioFileUrls)) * 100)
-              )}%`,
-            }}
-          />
-        </div>
-
-        <div className='flex space-x-2'>
-          {[...Array(3)].map((_, i) => (
-            <div
-              key={i}
-              className='w-2 h-2 bg-indigo-600 rounded-full animate-bounce'
-              style={{ animationDelay: `${i * 0.2}s` }}
-            />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
-  // Animate the progress dots
-  useEffect(() => {
-    let interval;
-    if (transcription?.status === 'processing' || transcription?.status === 'submitted') {
-      interval = setInterval(() => {
-        setProgressDots(dots => (dots.length >= 3 ? '' : dots + '.'));
-      }, 500);
-    }
-    return () => clearInterval(interval);
-  }, [transcription?.status]);
+  }, [transcription?.audioFileUrls, startTime, calculateEstimatedTime]);
 
   const fetchTranscription = useCallback(async () => {
     if (!transcriptionId) return;
@@ -259,7 +247,11 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
           <span className='text-lg text-indigo-600'>Fetching transcription status...</span>
         </div>
       ) : transcription?.status === 'processing' || transcription?.status === 'submitted' ? (
-        <ProcessingStatus />
+        <ProcessingStatus
+          estimatedTime={estimatedTime}
+          audioFilesCount={transcription?.audioFileUrls?.length || 1}
+          calculateEstimatedTime={calculateEstimatedTime}
+        />
       ) : transcription?.status === 'completed' ? (
         <>
           <div className='mb-4'>
@@ -276,7 +268,9 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
           <button
             onClick={handleSummarize}
             disabled={isSummarizing}
-            className='mt-4 flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'>
+            className='mt-4 flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium 
+                     rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 
+                     focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed'>
             {isSummarizing ? (
               <>
                 <Loader className='animate-spin mr-2' size={18} />
