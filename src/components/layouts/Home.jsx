@@ -5,6 +5,7 @@ import PricingSection from '../PricingSection';
 import AboutUsSection from '../AboutUsSection';
 import ContactUsSection from '../ContactUsSection';
 import HeroSection from '../HeroSection';
+import SubscriptionPlans from '../SubscriptionPlans';
 
 const Home = () => {
   return (
@@ -12,7 +13,8 @@ const Home = () => {
       <main>
         <HeroSection />
         <FeaturesSection />
-        <PricingSection />
+        <SubscriptionPlans />
+        {/* <PricingSection /> */}
         <AboutUsSection />
         <ContactUsSection />
       </main>

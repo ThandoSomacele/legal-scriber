@@ -17,10 +17,13 @@ if (missingVars.length > 0) {
 
 import express from 'express';
 import authRoutes from './src/routes/auth.js';
+import auth from './src/middleware/auth.js';
+import checkSubscription from './src/middleware/checkSubscription.js';
+import subscriptionRoutes from './src/routes/subscription.js';
 import transcriptionRoutes from './src/routes/transcriptions.js';
 import summaryRoutes from './src/routes/summaries.js';
 import userRoutes from './src/routes/user.js';
-import subscriptionRoutes from './src/routes/subscription.js';
+
 import multer from 'multer';
 import {
   BlobServiceClient,
@@ -65,11 +68,13 @@ app.use(
 // Set a reasonable size limit for JSON payloads
 app.use(express.json({ limit: '10mb' }));
 
+// Add subscription routes
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
-app.use('/api/transcriptions', transcriptionRoutes);
-app.use('/api/summaries', summaryRoutes);
+app.use('/api/transcriptions', [auth, checkSubscription], transcriptionRoutes);
+app.use('/api/summaries', [auth, checkSubscription], summaryRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 
 // Error handling middleware

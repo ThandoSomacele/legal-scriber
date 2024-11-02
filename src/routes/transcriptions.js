@@ -2,12 +2,16 @@ import express from 'express';
 import Transcription from '../models/Transcription.js';
 import { uploadAndTranscribe, checkTranscriptionStatus } from '../services/transcriptionService.js';
 import auth from '../middleware/auth.js';
+import checkSubscription from '../middleware/checkSubscription.js';
 import multer from 'multer';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-router.post('/', auth, upload.array('files'), async (req, res) => {
+router.post('/', [auth, checkSubscription], upload.array('files'), async (req, res) => {
+  // Check usage limits TODO
+  const { subscription } = req;
+
   try {
     const { meetingType } = req.body;
     const userId = req.user.id;

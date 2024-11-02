@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminRoute from './components/AdminRoute';
 import Header from './components/layouts/Header';
 import Home from './components/layouts/Home';
 import Dashboard from './components/Dashboard';
@@ -18,6 +19,12 @@ import Login from './components/Login';
 import UserProfile from './components/UserProfile';
 import UserSettings from './components/UserSettings';
 import BillingPage from './components/BillingPage';
+import SubscriptionPlans from './components/SubscriptionPlans';
+import SubscriptionSuccess from './components/SubscriptionSuccess';
+import SubscriptionCancel from './components/SubscriptionCancel';
+import PlanChange from './components/PlanChange';
+import UsageDashboard from './components/UsageDashboard';
+import AdminDashboard from './components/AdminDashboard';
 
 function App() {
   const [transcriptionId, setTranscriptionId] = useState(null);
@@ -68,9 +75,65 @@ function App() {
           <Header />
           <main className='flex-grow mt-20'>
             <Routes>
+              {/* Existing routes */}
               <Route path='/' element={<Home />} />
               <Route path='/signup' element={<SignUp />} />
               <Route path='/login' element={<Login />} />
+
+              {/* Subscription routes */}
+              <Route
+                path='/subscribe'
+                element={
+                  <ProtectedRoute>
+                    <SubscriptionPlans />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path='/subscription/success'
+                element={
+                  <ProtectedRoute>
+                    <SubscriptionSuccess />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path='/subscription/cancel'
+                element={
+                  <ProtectedRoute>
+                    <SubscriptionCancel />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path='/subscription/change'
+                element={
+                  <ProtectedRoute>
+                    <PlanChange />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path='/subscription/usage'
+                element={
+                  <ProtectedRoute>
+                    <UsageDashboard />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Admin routes */}
+              <Route
+                path='/admin/dashboard'
+                element={
+                  <ProtectedRoute>
+                    <AdminRoute>
+                      <AdminDashboard />
+                    </AdminRoute>
+                  </ProtectedRoute>
+                }
+              />
+
               {/* <Route
                 path='/dashboard'
                 element={
@@ -177,6 +240,30 @@ function App() {
                   </ProtectedRoute>
                 }
               /> */}
+              <Route
+                path='/subscribe'
+                element={
+                  <ProtectedRoute>
+                    <SubscriptionPlans />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path='/subscription/success'
+                element={
+                  <ProtectedRoute>
+                    <SubscriptionSuccess />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path='/subscription/cancel'
+                element={
+                  <ProtectedRoute>
+                    <SubscriptionCancel />
+                  </ProtectedRoute>
+                }
+              />
               <Route path='/terms-and-conditions' element={<TermsAndConditions />} />
               <Route path='/privacy-policy' element={<PrivacyPolicy />} />
             </Routes>

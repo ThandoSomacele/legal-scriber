@@ -4,7 +4,7 @@ import express from 'express';
 import auth from '../middleware/auth.js';
 import Subscription from '../models/Subscription.js';
 import User from '../models/User.js';
-import { verifyNotification } from '../services/subscriptionService.js';
+import { verifyNotificationServer } from '../services/subscriptionService.js';
 
 const router = express.Router();
 
@@ -26,12 +26,12 @@ router.post('/create', auth, async (req, res) => {
     // Check for existing active subscription
     const existingSubscription = await Subscription.findOne({
       user: userId,
-      status: 'active'
+      status: 'active',
     });
 
     if (existingSubscription) {
       return res.status(400).json({
-        message: 'User already has an active subscription'
+        message: 'User already has an active subscription',
       });
     }
 
@@ -40,21 +40,20 @@ router.post('/create', auth, async (req, res) => {
       user: userId,
       planId,
       paymentData,
-      status: 'pending'
+      status: 'pending',
     });
 
     await subscription.save();
 
     res.status(201).json({
       message: 'Subscription initiated successfully',
-      subscriptionId: subscription._id
+      subscriptionId: subscription._id,
     });
-
   } catch (error) {
     console.error('Error creating subscription:', error);
     res.status(500).json({
       message: 'Failed to create subscription',
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -76,8 +75,11 @@ router.post('/notify', async (req, res) => {
       .map(key => `${key}=${encodeURIComponent(pfData[key])}`)
       .join('&');
 
-    // Verify PayFast notification
-    const isValid = await verifyNotification(pfData, pfParamString);
+    // Get client IP address
+    const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+
+    // Verify PayFast notification with server-side checks
+    const isValid = await verifyNotificationServer(pfData, pfParamString, ipAddress);
     if (!isValid) {
       console.error('Invalid PayFast notification');
       return res.status(400).send('invalid');
@@ -85,7 +87,7 @@ router.post('/notify', async (req, res) => {
 
     // Find subscription by payment ID
     const subscription = await Subscription.findOne({
-      'paymentData.m_payment_id': pfData.m_payment_id
+      'paymentData.m_payment_id': pfData.m_payment_id,
     });
 
     if (!subscription) {
@@ -93,49 +95,46 @@ router.post('/notify', async (req, res) => {
       return res.status(404).send('not found');
     }
 
-    // Update payment data
-    subscription.paymentData = {
-      ...subscription.paymentData,
-      pf_payment_id: pfData.pf_payment_id,
-      payment_status: pfData.payment_status,
-      item_name: pfData.item_name,
-      amount_gross: parseFloat(pfData.amount_gross),
-      amount_fee: parseFloat(pfData.amount_fee),
-      amount_net: parseFloat(pfData.amount_net)
+    // Update subscription status and payment data
+    const updatedData = {
+      'paymentData.pf_payment_id': pfData.pf_payment_id,
+      'paymentData.payment_status': pfData.payment_status,
+      'paymentData.item_name': pfData.item_name,
+      'paymentData.amount_gross': parseFloat(pfData.amount_gross),
+      'paymentData.amount_fee': parseFloat(pfData.amount_fee),
+      'paymentData.amount_net': parseFloat(pfData.amount_net),
     };
 
-    // Update subscription status based on payment status
+    // Update status based on payment status
     switch (pfData.payment_status) {
       case 'COMPLETE':
-        subscription.status = 'active';
-        subscription.startDate = new Date();
-        // Set end date to one month from now
-        subscription.endDate = new Date();
-        subscription.endDate.setMonth(subscription.endDate.getMonth() + 1);
+        updatedData.status = 'active';
+        updatedData.startDate = new Date();
+        updatedData.endDate = new Date();
+        updatedData.endDate.setMonth(updatedData.endDate.getMonth() + 1);
         break;
       case 'CANCELLED':
-        subscription.status = 'cancelled';
-        subscription.cancelledDate = new Date();
+        updatedData.status = 'cancelled';
+        updatedData.cancelledDate = new Date();
         break;
       case 'FAILED':
-        subscription.status = 'failed';
+        updatedData.status = 'failed';
         break;
-      default:
-        console.warn('Unknown payment status:', pfData.payment_status);
     }
 
-    await subscription.save();
+    await Subscription.findByIdAndUpdate(subscription._id, {
+      $set: updatedData,
+    });
 
-    // For active subscriptions, update user's subscription status
-    if (subscription.status === 'active') {
+    // Update user subscription status if payment is complete
+    if (pfData.payment_status === 'COMPLETE') {
       await User.findByIdAndUpdate(subscription.user, {
         subscriptionPlan: subscription.planId,
-        subscriptionStatus: 'active'
+        subscriptionStatus: 'active',
       });
     }
 
     res.send('ok');
-
   } catch (error) {
     console.error('Error processing PayFast notification:', error);
     res.status(500).send('error');
@@ -151,13 +150,13 @@ router.get('/status', auth, async (req, res) => {
   try {
     const subscription = await Subscription.findOne({
       user: req.user.id,
-      status: 'active'
+      status: 'active',
     }).sort({ createdAt: -1 });
 
     if (!subscription) {
       return res.json({
         active: false,
-        message: 'No active subscription found'
+        message: 'No active subscription found',
       });
     }
 
@@ -169,12 +168,12 @@ router.get('/status', auth, async (req, res) => {
       // Update user's subscription status
       await User.findByIdAndUpdate(req.user.id, {
         subscriptionPlan: null,
-        subscriptionStatus: 'inactive'
+        subscriptionStatus: 'inactive',
       });
 
       return res.json({
         active: false,
-        message: 'Subscription has expired'
+        message: 'Subscription has expired',
       });
     }
 
@@ -184,15 +183,14 @@ router.get('/status', auth, async (req, res) => {
         planId: subscription.planId,
         startDate: subscription.startDate,
         endDate: subscription.endDate,
-        status: subscription.status
-      }
+        status: subscription.status,
+      },
     });
-
   } catch (error) {
     console.error('Error checking subscription status:', error);
     res.status(500).json({
       message: 'Failed to check subscription status',
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -206,12 +204,12 @@ router.post('/cancel', auth, async (req, res) => {
   try {
     const subscription = await Subscription.findOne({
       user: req.user.id,
-      status: 'active'
+      status: 'active',
     });
 
     if (!subscription) {
       return res.status(404).json({
-        message: 'No active subscription found'
+        message: 'No active subscription found',
       });
     }
 
@@ -222,18 +220,17 @@ router.post('/cancel', auth, async (req, res) => {
     // Update user's subscription status
     await User.findByIdAndUpdate(req.user.id, {
       subscriptionPlan: null,
-      subscriptionStatus: 'inactive'
+      subscriptionStatus: 'inactive',
     });
 
     res.json({
-      message: 'Subscription cancelled successfully'
+      message: 'Subscription cancelled successfully',
     });
-
   } catch (error) {
     console.error('Error cancelling subscription:', error);
     res.status(500).json({
       message: 'Failed to cancel subscription',
-      error: error.message
+      error: error.message,
     });
   }
 });

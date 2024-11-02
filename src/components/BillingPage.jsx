@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, Clock, Download } from 'lucide-react';
+import UsageDashboard from './UsageDashboard';
 
 const BillingPage = () => {
   // Mock user and billing data - in a real application, this would come from an API
@@ -98,6 +99,7 @@ const BillingPage = () => {
           </div>
         </div>
       </div>
+      <UsageDashboard />
     </div>
   );
 };

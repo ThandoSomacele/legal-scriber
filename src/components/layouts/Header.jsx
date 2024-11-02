@@ -69,9 +69,10 @@ const Header = () => {
   const linkStyle = 'text-base font-medium text-gray-500 hover:text-gray-900';
 
   // Render the appropriate link based on whether it's a home-section on the home page or a separate page
-  const renderNavLink = item => {
+  const renderNavLink = (item, i) => {
     return (
       <RouterLink
+        key={i}
         to={item.type === 'home-section' ? `/#${item.href}` : item.href}
         className={`${linkStyle} cursor-pointer`}
         onClick={e => {
@@ -136,12 +137,23 @@ const Header = () => {
                     <RouterLink to='/profile' className='block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100'>
                       Your Profile
                     </RouterLink>
-                    <RouterLink to='/billing' className='block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100'>
-                      Billing
+                    <RouterLink
+                      to='/subscription/usage'
+                      className='block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100'>
+                      Usage Dashboard
                     </RouterLink>
-                    <RouterLink to='/settings' className='block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100'>
-                      Settings
+                    <RouterLink
+                      to='/subscription/change'
+                      className='block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100'>
+                      Manage Subscription
                     </RouterLink>
+                    {user.role === 'admin' && (
+                      <RouterLink
+                        to='/admin/dashboard'
+                        className='block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100'>
+                        Admin Dashboard
+                      </RouterLink>
+                    )}
                     <button
                       onClick={handleSignOut}
                       className='block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100'>
