@@ -2,50 +2,45 @@
 import { AzureOpenAI } from 'openai';
 import dotenv from 'dotenv';
 
-// Ensure environment variables are loaded
 dotenv.config();
 
-// Add debugging
-console.log('Azure OpenAI Service - Environment variables:');
-console.log('API Key:', process.env.AZURE_OPENAI_API_KEY ? 'Set' : 'Not Set');
-console.log('Endpoint:', process.env.AZURE_OPENAI_ENDPOINT);
-
+/**
+ * Initializes the Azure OpenAI client
+ * @returns {AzureOpenAI} The configured client
+ */
 const initializeOpenAIClient = () => {
   const apiKey = process.env.AZURE_OPENAI_API_KEY;
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
+  const apiVersion = process.env.AZURE_OPENAI_API_VERSION;
+  const deploymentId = process.env.AZURE_OPENAI_CHAT_DEPLOYMENT;
 
-  // Add more detailed logging
-  console.log('Initializing Azure OpenAI client with:');
-  console.log('- API Key:', apiKey ? '[REDACTED]' : 'undefined');
-  console.log('- Endpoint:', endpoint);
+  // Debug logging
+  console.log('Azure OpenAI Configuration:');
+  console.log('Endpoint:', endpoint);
+  console.log('API Version:', apiVersion);
+  console.log('Deployment ID:', deploymentId);
 
-  if (!apiKey || !endpoint) {
-    const missingVars = [];
-    if (!apiKey) missingVars.push('AZURE_OPENAI_API_KEY');
-    if (!endpoint) missingVars.push('AZURE_OPENAI_ENDPOINT');
-
+  if (!apiKey || !endpoint || !apiVersion || !deploymentId) {
     throw new Error(
-      `Missing required environment variables: ${missingVars.join(', ')}. ` + 'Please check your .env file.'
+      `Missing Azure OpenAI configuration:\n${!apiKey ? '- API Key missing\n' : ''}${
+        !endpoint ? '- Endpoint missing\n' : ''
+      }${!apiVersion ? '- API Version missing\n' : ''}${!deploymentId ? '- Deployment ID missing\n' : ''}`
     );
   }
 
   try {
-    const client = new AzureOpenAI({
+    return new AzureOpenAI({
       apiKey,
       endpoint,
-      apiVersion: '2024-04-01-preview',
-      defaultDeployment: 'gpt-4o',
+      apiVersion,
     });
-
-    console.log('Azure OpenAI client initialized successfully');
-    return client;
   } catch (error) {
-    console.error('Error initializing Azure OpenAI client:', error);
+    console.error('Error initializing OpenAI client:', error);
     throw error;
   }
 };
 
-// Create a singleton instance of the client
+// Create singleton instance
 let openAIClient;
 try {
   openAIClient = initializeOpenAIClient();
@@ -53,46 +48,72 @@ try {
   console.error('Failed to initialize Azure OpenAI client:', error);
 }
 
-// Export the client for potential direct usage in other services
-export const getOpenAIClient = () => {
+/**
+ * Generates an AI summary of the provided transcription
+ * @param {string} transcriptionText - Text to summarize
+ * @param {string} meetingType - Type of meeting
+ * @returns {Promise<string>} Generated summary
+ */
+export const generateSummaryWithAI = async (transcriptionText, meetingType) => {
   if (!openAIClient) {
-    openAIClient = initializeOpenAIClient();
-  }
-  return openAIClient;
-};
-
-export const generateSummaryWithAI = async (transcription, meetingType) => {
-  const client = getOpenAIClient();
-  if (!client) {
     throw new Error('Azure OpenAI client is not initialized');
   }
 
-  try {
-    const systemMessage =
-      meetingType === 'legal'
-        ? 'You are a legal professional specialising in transcription summarisation.'
-        : 'You are a professional meeting summariser.';
+  const deploymentId = process.env.AZURE_OPENAI_CHAT_DEPLOYMENT;
+  console.log('Attempting summary with deployment:', deploymentId);
 
-    const response = await client.chat.completions.create({
-      model: 'gpt-4o',
+  try {
+    const completion = await openAIClient.chat.completions.create({
+      model: deploymentId,
       messages: [
-        { role: 'system', content: systemMessage },
-        { role: 'user', content: `Please summarise the following ${meetingType} transcription: ${transcription}` },
+        {
+          role: 'system',
+          content:
+            meetingType === 'legal'
+              ? 'You are a legal professional summarizing legal proceedings. Provide clear, structured summaries that highlight key legal points, arguments, decisions, and maintain formal legal language.'
+              : 'You are a professional meeting summarizer. Create clear, structured summaries that highlight key discussion points, decisions made, action items, and use clear business language.',
+        },
+        {
+          role: 'user',
+          content: `Please provide a comprehensive summary of the following ${meetingType} transcription:\n\n${transcriptionText}`,
+        },
       ],
-      max_tokens: 1000,
-      temperature: 0.7,
-      stream: false,
-      timeout: 60000,
+      temperature: 0.3,
+      max_tokens: 4000,
+      top_p: 0.95,
+      frequency_penalty: 0.0,
+      presence_penalty: 0.0,
     });
 
-    return response.choices[0].message.content;
+    console.log('Summary generation completed successfully');
+    return completion.choices[0].message.content;
   } catch (error) {
-    console.error('Error generating summary with Azure OpenAI:', error);
-    throw new Error(`Failed to generate summary: ${error.message}`);
+    console.error('Azure OpenAI Error Details:', {
+      error,
+      message: error.message,
+      status: error.status,
+      code: error.code,
+      type: error.type,
+      deploymentUsed: deploymentId,
+      endpoint: process.env.AZURE_OPENAI_ENDPOINT,
+    });
+
+    // Enhanced error handling
+    if (error.status === 404) {
+      throw new Error(
+        `Azure OpenAI deployment '${deploymentId}' not found. Please verify the deployment name and ensure it is active.`
+      );
+    } else if (error.status === 401) {
+      throw new Error('Authentication failed. Please check your Azure OpenAI API key.');
+    } else if (error.status === 429) {
+      throw new Error('Rate limit exceeded. Please try again later.');
+    }
+
+    throw error;
   }
 };
 
 export default {
-  getOpenAIClient,
+  getOpenAIClient: () => openAIClient,
   generateSummaryWithAI,
 };
