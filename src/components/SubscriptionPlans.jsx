@@ -7,7 +7,11 @@ import envConfig from '../../envConfig';
 import SandboxTestInfo from './SandboxTestInfo';
 
 export default function SubscriptionPlans() {
-  const [loading, setLoading] = useState(false);
+  const [loadingStates, setLoadingStates] = useState({
+    basic: false,
+    professional: false,
+    enterprise: false,
+  });
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -80,7 +84,7 @@ export default function SubscriptionPlans() {
         return;
       }
 
-      setLoading(true);
+      setLoadingStates(prevState => ({ ...prevState, [tier.id]: true }));
       setError(null);
 
       const returnUrl = `${envConfig.frontendUrl}/subscription/success`;
@@ -107,7 +111,7 @@ export default function SubscriptionPlans() {
       console.error('Subscription error:', error);
       setError('Failed to initiate subscription. Please try again.');
     } finally {
-      setLoading(false);
+      setLoadingStates(prevState => ({ ...prevState, [tier.id]: false }));
     }
   };
 
@@ -145,13 +149,13 @@ export default function SubscriptionPlans() {
                 </p>
                 <button
                   onClick={() => handleSubscribe(tier)}
-                  disabled={loading}
+                  disabled={loadingStates[tier.id]}
                   className={`mt-8 w-full py-3 px-6 border border-transparent rounded-md text-center font-medium ${
                     tier.mostPopular
                       ? 'bg-indigo-600 text-white hover:bg-indigo-700'
                       : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
                   } disabled:opacity-50`}>
-                  {loading ? (
+                  {loadingStates[tier.id] ? (
                     <>
                       <Loader className='animate-spin -ml-1 mr-3 h-5 w-5 inline' />
                       Processing...

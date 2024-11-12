@@ -1,15 +1,148 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { FileText, Loader, AlertCircle, Lightbulb, Mic, Clock, Timer } from 'lucide-react';
+import { FileText, Loader, AlertCircle, Lightbulb, Mic, Clock, Timer, Edit2, Check, X } from 'lucide-react';
 import apiClient from '../apiClient';
 import Disclaimer from './Disclaimer';
 
-// Separate ProcessingStatus component with proper state management
+// Reusable component for editable speaker names
+const EditableSpeaker = ({ originalName, onSave }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [name, setName] = useState(originalName);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (isEditing) {
+      inputRef.current?.focus();
+    }
+  }, [isEditing]);
+
+  const handleSave = () => {
+    onSave(name);
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setName(originalName);
+    setIsEditing(false);
+  };
+
+  return isEditing ? (
+    <div className='flex items-center space-x-2'>
+      <input
+        ref={inputRef}
+        type='text'
+        value={name}
+        onChange={e => setName(e.target.value)}
+        className='px-2 py-1 text-sm border border-indigo-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent'
+        onKeyPress={e => e.key === 'Enter' && handleSave()}
+      />
+      <button onClick={handleSave} className='p-1 text-green-600 hover:text-green-700' title='Save'>
+        <Check className='w-4 h-4' />
+      </button>
+      <button onClick={handleCancel} className='p-1 text-red-600 hover:text-red-700' title='Cancel'>
+        <X className='w-4 h-4' />
+      </button>
+    </div>
+  ) : (
+    <div className='flex items-center space-x-2'>
+      <span className='font-medium text-indigo-700'>{name}</span>
+      <button
+        onClick={() => setIsEditing(true)}
+        className='p-1 text-gray-500 hover:text-indigo-600'
+        title='Edit speaker name'>
+        <Edit2 className='w-4 h-4' />
+      </button>
+    </div>
+  );
+};
+
+// Enhanced transcription content component with diarisation
+const TranscriptionContent = ({ content, updateSpeakerName }) => {
+  const [speakerMap, setSpeakerMap] = useState({});
+
+  // Format timestamp function
+  const formatTime = seconds => {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Handle speaker name updates
+  const handleSpeakerUpdate = (speakerId, newName) => {
+    setSpeakerMap(prev => ({ ...prev, [speakerId]: newName }));
+    if (updateSpeakerName) {
+      updateSpeakerName(speakerId, newName);
+    }
+  };
+
+  // Render speaker's name or number
+  const getSpeakerDisplay = speakerId => {
+    // First check if we have a custom name in our map
+    if (speakerMap[speakerId]) {
+      return speakerMap[speakerId];
+    }
+
+    // Convert speakerId to string to ensure we can use includes
+    const speakerIdString = String(speakerId);
+
+    // Check if it already has "Speaker" prefix
+    if (speakerIdString.includes('Speaker')) {
+      return speakerIdString;
+    }
+
+    // If it's just a number or other identifier, format it as "Speaker X"
+    return `Speaker ${speakerIdString}`;
+  };
+
+  if (!content) {
+    return <p className='text-gray-600'>No transcription content available.</p>;
+  }
+
+  try {
+    const contentObject = JSON.parse(content);
+    if (!contentObject.recognizedPhrases?.length) {
+      return <p className='text-gray-600'>No phrases found in transcription.</p>;
+    }
+
+    return (
+      <div className='bg-indigo-50 p-4 rounded-md max-h-96 overflow-y-auto space-y-4'>
+        {contentObject.recognizedPhrases.map((phrase, index) => {
+          const startTime = Math.floor(phrase.offsetInTicks / 10000000);
+          const duration = Math.floor(phrase.durationInTicks / 10000000);
+          // Extract speaker information - the API will return a number for identified speakers
+          const speakerId = phrase.speaker ? `Speaker ${phrase.speaker}` : `Speaker ${index + 1}`;
+
+          return (
+            <div key={index} className='bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow'>
+              <div className='flex flex-col sm:flex-row sm:items-center justify-between mb-2'>
+                <EditableSpeaker
+                  originalName={speakerMap[speakerId] || speakerId}
+                  onSave={newName => handleSpeakerUpdate(speakerId, newName)}
+                />
+                <div className='flex items-center text-sm text-indigo-600 mt-2 sm:mt-0'>
+                  <Clock className='w-4 h-4 mr-1' />
+                  <span>{formatTime(startTime)}</span>
+                  <span className='mx-1'>-</span>
+                  <span>{formatTime(startTime + duration)}</span>
+                </div>
+              </div>
+              <p className='text-gray-800 pl-4 border-l-4 border-indigo-100'>{phrase.nBest[0].display}</p>
+            </div>
+          );
+        })}
+      </div>
+    );
+  } catch (e) {
+    console.error('Error parsing transcription content:', e);
+    return <p className='text-gray-600'>Error displaying transcription content.</p>;
+  }
+};
+
+// Processing status component
 const ProcessingStatus = ({ estimatedTime, audioFilesCount, calculateEstimatedTime }) => {
-  // Use refs for intervals to prevent memory leaks
   const dotsRef = useRef('');
   const [dots, setDots] = useState('');
 
-  // Handle dots animation with useEffect
   useEffect(() => {
     const interval = setInterval(() => {
       dotsRef.current = dotsRef.current.length >= 3 ? '' : dotsRef.current + '.';
@@ -19,7 +152,6 @@ const ProcessingStatus = ({ estimatedTime, audioFilesCount, calculateEstimatedTi
     return () => clearInterval(interval);
   }, []);
 
-  // Format time display
   const formatTimeRemaining = seconds => {
     if (!seconds) return '';
     const minutes = Math.floor(seconds / 60);
@@ -29,13 +161,11 @@ const ProcessingStatus = ({ estimatedTime, audioFilesCount, calculateEstimatedTi
       : `About ${minutes}:${remainingSeconds.toString().padStart(2, '0')} minutes remaining`;
   };
 
-  // Calculate progress percentage
   const progress = Math.max(10, Math.min(90, 100 - (estimatedTime / calculateEstimatedTime(audioFilesCount)) * 100));
 
   return (
     <div className='bg-indigo-50 p-6 rounded-lg'>
       <div className='flex flex-col items-center space-y-4'>
-        {/* Animated microphone icon */}
         <div className='relative'>
           <div className='absolute inset-0 bg-indigo-200 rounded-full animate-ping opacity-25'></div>
           <Mic className='w-12 h-12 text-indigo-600 relative z-10 animate-pulse' />
@@ -45,19 +175,16 @@ const ProcessingStatus = ({ estimatedTime, audioFilesCount, calculateEstimatedTi
           <h3 className='text-lg font-medium text-indigo-700'>Processing Audio{dots}</h3>
           <p className='text-sm text-indigo-600'>Converting your audio to text</p>
 
-          {/* Time remaining display */}
           <div className='flex items-center justify-center text-sm text-indigo-500 mt-2'>
             <Timer className='w-4 h-4 mr-1' />
             <span>{formatTimeRemaining(estimatedTime)}</span>
           </div>
 
-          {/* File count indicator */}
           <div className='text-xs text-indigo-400 mt-1'>
             {audioFilesCount > 1 ? `Processing ${audioFilesCount} audio files` : 'Processing audio file'}
           </div>
         </div>
 
-        {/* Progress bar */}
         <div className='w-full max-w-md h-2 bg-indigo-100 rounded-full overflow-hidden'>
           <div
             className='h-full bg-indigo-600 rounded-full transition-all duration-1000'
@@ -65,7 +192,6 @@ const ProcessingStatus = ({ estimatedTime, audioFilesCount, calculateEstimatedTi
           />
         </div>
 
-        {/* Bouncing dots animation */}
         <div className='flex space-x-2'>
           {[...Array(3)].map((_, i) => (
             <div
@@ -80,23 +206,22 @@ const ProcessingStatus = ({ estimatedTime, audioFilesCount, calculateEstimatedTi
   );
 };
 
+// Main TranscriptionDisplay component
 const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType }) => {
-  // Existing state declarations
   const [transcription, setTranscription] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [estimatedTime, setEstimatedTime] = useState(null);
   const [startTime, setStartTime] = useState(null);
+  const [speakerNames, setSpeakerNames] = useState({});
 
-  // Calculate estimated completion time
   const calculateEstimatedTime = useCallback(audioUrlsCount => {
-    const baseTime = 30; // Base processing time in seconds
-    const perFileTime = 20; // Per file processing time in seconds
+    const baseTime = 30;
+    const perFileTime = 20;
     return baseTime + audioUrlsCount * perFileTime;
   }, []);
 
-  // Update remaining time using useEffect
   useEffect(() => {
     let interval;
     if (
@@ -113,7 +238,6 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
     return () => clearInterval(interval);
   }, [startTime, estimatedTime, transcription?.status]);
 
-  // Initialize timer when transcription starts
   useEffect(() => {
     if (transcription?.audioFileUrls && !startTime) {
       const initialEstimate = calculateEstimatedTime(transcription.audioFileUrls.length);
@@ -128,13 +252,10 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
     try {
       const response = await apiClient.get(`/api/transcriptions/${transcriptionId}`);
       setTranscription(response.data);
-
-      // Store the transcription data in localStorage
       localStorage.setItem('transcription', JSON.stringify(response.data));
 
-      // If the transcription is still processing, set up a timer to check again
       if (response.data.status === 'processing' || response.data.status === 'submitted') {
-        setTimeout(fetchTranscription, 10000); // Check every 10 seconds
+        setTimeout(fetchTranscription, 10000);
       } else {
         setIsLoading(false);
       }
@@ -146,7 +267,6 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
   }, [transcriptionId]);
 
   useEffect(() => {
-    // Try to load transcription from localStorage on component mount
     const storedTranscription = localStorage.getItem('transcription');
     if (storedTranscription) {
       setTranscription(JSON.parse(storedTranscription));
@@ -155,6 +275,14 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
 
     fetchTranscription();
   }, [fetchTranscription]);
+
+  const handleSpeakerNameUpdate = (speakerId, newName) => {
+    setSpeakerNames(prev => ({
+      ...prev,
+      [speakerId]: newName,
+    }));
+    // Here you could add persistence logic if needed
+  };
 
   const handleSummarize = async () => {
     if (!transcription) return;
@@ -172,55 +300,6 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
       setError(error.response?.data?.message || 'Failed to generate summary. Please try again later.');
     } finally {
       setIsSummarizing(false);
-    }
-  };
-
-  // Enhanced transcription content renderer with timestamp formatting
-  const renderTranscriptionContent = content => {
-    if (!content) {
-      return <p className='text-gray-600'>No transcription content available.</p>;
-    }
-
-    try {
-      const contentObject = JSON.parse(content);
-      if (contentObject.combinedRecognizedPhrases && contentObject.combinedRecognizedPhrases.length > 0) {
-        return (
-          <div className='bg-indigo-50 p-4 rounded-md max-h-96 overflow-y-auto'>
-            {contentObject.recognizedPhrases?.map((phrase, index) => {
-              // Convert ticks to seconds (assuming ticks are in 100-nanosecond units)
-              const startTime = Math.floor(phrase.offsetInTicks / 10000000);
-              const duration = Math.floor(phrase.durationInTicks / 10000000);
-              const endTime = startTime + duration;
-
-              // Format timestamp
-              const formatTime = seconds => {
-                const hrs = Math.floor(seconds / 3600);
-                const mins = Math.floor((seconds % 3600) / 60);
-                const secs = seconds % 60;
-                return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs
-                  .toString()
-                  .padStart(2, '0')}`;
-              };
-
-              return (
-                <div key={index} className='mb-4 hover:bg-indigo-100 p-2 rounded-lg transition-colors'>
-                  <div className='flex items-center text-sm text-indigo-600 mb-1'>
-                    <Clock className='w-4 h-4 mr-1' />
-                    <span>
-                      {formatTime(startTime)} - {formatTime(endTime)}
-                    </span>
-                  </div>
-                  <p className='text-gray-800'>{phrase.nBest[0].display}</p>
-                </div>
-              );
-            })}
-          </div>
-        );
-      }
-      return <p className='text-gray-600'>{content}</p>;
-    } catch (e) {
-      console.error('Error parsing transcription content:', e);
-      return <p className='text-gray-600'>{content}</p>;
     }
   };
 
@@ -262,7 +341,10 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
           {transcription.audioFileUrls.map((url, index) => (
             <div key={index} className='mb-6'>
               <h3 className='text-lg font-semibold text-indigo-600 mb-2'>Audio File {index + 1}</h3>
-              {renderTranscriptionContent(transcription.content[index])}
+              <TranscriptionContent
+                content={transcription.content[index]}
+                updateSpeakerName={handleSpeakerNameUpdate}
+              />
             </div>
           ))}
           <button

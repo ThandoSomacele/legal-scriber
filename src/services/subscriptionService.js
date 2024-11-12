@@ -4,9 +4,9 @@ import envConfig from '../../envConfig.js';
 // PayFast API configuration with sandbox fallback
 const PAYFAST_CONFIG = {
   sandbox: {
-    merchant_id: '10000100',
-    merchant_key: '46f0cd694581a',
-    passphrase: 'jt7NOE43FZPn', // Default sandbox passphrase
+    merchant_id: '10035674',
+    merchant_key: '9nqhf208lzpc4',
+    passphrase: 'legalscribersandboxing', // Default sandbox passphrase
     url: 'https://sandbox.payfast.co.za/eng/process',
   },
   production: {
@@ -156,7 +156,6 @@ function generateMD5Hash(message) {
 
 // Generate PayFast signature
 function generateSignature(data, passPhrase = null) {
-  // Create parameter string
   const params = Object.keys(data)
     .filter(key => data[key] !== undefined && data[key] !== '')
     .sort()

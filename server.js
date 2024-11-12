@@ -372,10 +372,15 @@ app.post('/upload-and-transcribe', upload.array('files'), async (req, res) => {
 
     const transcriptionApiUrl = `https://${process.env.VITE_SERVICE_REGION}.api.cognitive.microsoft.com/speechtotext/v3.2/transcriptions`;
 
+    // In the transcription request body configuration
     const requestBody = {
       contentUrls: uploadedFiles,
       properties: {
-        diarizationEnabled: true,
+        diarizationEnabled: true, // Enable speaker diarisation
+        diarization: {
+          minSpeakers: 2, // Minimum number of expected speakers
+          maxSpeakers: 10, // Maximum number of expected speakers
+        },
         wordLevelTimestampsEnabled: true,
         punctuationMode: 'DictatedAndAutomatic',
         profanityFilterMode: 'Masked',
@@ -383,7 +388,6 @@ app.post('/upload-and-transcribe', upload.array('files'), async (req, res) => {
       locale: 'en-GB',
       displayName: `Transcription_${meetingType}_${Date.now()}`,
     };
-
     console.log('Sending transcription request to Azure...');
 
     const transcriptionResponse = await axios.post(transcriptionApiUrl, requestBody, {
