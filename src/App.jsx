@@ -6,6 +6,7 @@ import AdminRoute from './components/AdminRoute';
 import Header from './components/layouts/Header';
 import Home from './components/layouts/Home';
 import Dashboard from './components/Dashboard';
+import MainLayout from './components/layouts/MainLayout';
 import MultiAudioUploader from './components/MultiAudioUploader';
 import TranscriptionDisplay from './components/TranscriptionDisplay';
 import SummaryEditor from './components/SummaryEditor';
@@ -71,205 +72,112 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <div className='flex flex-col min-h-screen'>
-          <Header />
-          <main className='flex-grow mt-20'>
-            <Routes>
-              {/* Existing routes */}
-              <Route path='/' element={<Home />} />
-              <Route path='/signup' element={<SignUp />} />
-              <Route path='/login' element={<Login />} />
+        <MainLayout>
+          <Routes>
+            {/* Public Routes */}
+            <Route path='/' element={<Home />} />
+            <Route path='/signup' element={<SignUp />} />
+            <Route path='/login' element={<Login />} />
+            <Route path='/terms-and-conditions' element={<TermsAndConditions />} />
+            <Route path='/privacy-policy' element={<PrivacyPolicy />} />
 
-              {/* Subscription routes */}
-              <Route
-                path='/subscribe'
-                element={
-                  <ProtectedRoute>
-                    <SubscriptionPlans />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path='/subscription/success'
-                element={
-                  <ProtectedRoute>
-                    <SubscriptionSuccess />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path='/subscription/cancel'
-                element={
-                  <ProtectedRoute>
-                    <SubscriptionCancel />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path='/subscription/change'
-                element={
-                  <ProtectedRoute>
-                    <PlanChange />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path='/subscription/usage'
-                element={
-                  <ProtectedRoute>
-                    <UsageDashboard />
-                  </ProtectedRoute>
-                }
-              />
-
-              {/* Admin routes */}
-              <Route
-                path='/admin/dashboard'
-                element={
-                  <ProtectedRoute>
-                    <AdminRoute>
-                      <AdminDashboard />
-                    </AdminRoute>
-                  </ProtectedRoute>
-                }
-              />
-
-              {/* <Route
-                path='/dashboard'
-                element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                }
-              /> */}
-              <Route
-                path='/profile'
-                element={
-                  <ProtectedRoute>
-                    <UserProfile />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path='/settings'
-                element={
-                  <ProtectedRoute>
-                    <UserSettings />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path='/billing'
-                element={
-                  <ProtectedRoute>
-                    <BillingPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path='/transcribe'
-                element={
-                  <ProtectedRoute>
-                    <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8'>
-                      <div className='bg-white shadow-md rounded-lg p-6'>
-                        <h2 className='text-2xl font-semibold text-indigo-700 mb-4'>Select Meeting Type</h2>
-                        <div className='flex space-x-4'>
-                          <button
-                            onClick={() => handleMeetingTypeChange('legal')}
-                            className={`px-4 py-2 rounded-md ${
-                              meetingType === 'legal'
-                                ? 'bg-indigo-600 text-white'
-                                : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
-                            } transition-colors duration-300`}>
-                            Legal Hearing
-                          </button>
-                          <button
-                            onClick={() => handleMeetingTypeChange('meeting')}
-                            className={`px-4 py-2 rounded-md ${
-                              meetingType === 'meeting'
-                                ? 'bg-indigo-600 text-white'
-                                : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
-                            } transition-colors duration-300`}>
-                            Standard Meeting
-                          </button>
-                        </div>
+            {/* Protected Routes - These will have the sidebar when logged in */}
+            <Route
+              path='/transcribe'
+              element={
+                <ProtectedRoute>
+                  <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8'>
+                    <div className='bg-white shadow-md rounded-lg p-6'>
+                      <h2 className='text-2xl font-semibold text-indigo-700 mb-4'>Select Meeting Type</h2>
+                      <div className='flex space-x-4'>
+                        <button
+                          onClick={() => handleMeetingTypeChange('legal')}
+                          className={`px-4 py-2 rounded-md ${
+                            meetingType === 'legal'
+                              ? 'bg-indigo-600 text-white'
+                              : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                          } transition-colors duration-300`}>
+                          Legal Hearing
+                        </button>
+                        <button
+                          onClick={() => handleMeetingTypeChange('meeting')}
+                          className={`px-4 py-2 rounded-md ${
+                            meetingType === 'meeting'
+                              ? 'bg-indigo-600 text-white'
+                              : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                          } transition-colors duration-300`}>
+                          Standard Meeting
+                        </button>
                       </div>
-                      <MultiAudioUploader
-                        onTranscriptionCreated={handleTranscriptionCreated}
-                        meetingType={meetingType}
-                      />
-                      <TranscriptionDisplay
-                        transcriptionId={transcriptionId}
-                        onSummaryGenerated={handleSummaryGenerated}
-                        meetingType={meetingType}
-                      />
-                      <SummaryEditor summaryId={summaryId} meetingType={meetingType} />
                     </div>
-                  </ProtectedRoute>
-                }
-              />
-              {/* <Route
-                path='/summaries'
-                element={
-                  <ProtectedRoute>
-                    <Summaries />
-                  </ProtectedRoute>
-                }
-              /> */}
-              {/* <Route
-                path='/summaries/:id'
-                element={
-                  <ProtectedRoute>
-                    <SummaryEditor />
-                  </ProtectedRoute>
-                }
-              /> */}
-              {/* <Route
-                path='/transcriptions'
-                element={
-                  <ProtectedRoute>
-                    <Transcriptions />
-                  </ProtectedRoute>
-                }
-              /> */}
-              {/* <Route
-                path='/transcriptions/:id'
-                element={
-                  <ProtectedRoute>
-                    <TranscriptionDisplay />
-                  </ProtectedRoute>
-                }
-              /> */}
-              <Route
-                path='/subscribe'
-                element={
-                  <ProtectedRoute>
-                    <SubscriptionPlans />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path='/subscription/success'
-                element={
-                  <ProtectedRoute>
-                    <SubscriptionSuccess />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path='/subscription/cancel'
-                element={
-                  <ProtectedRoute>
-                    <SubscriptionCancel />
-                  </ProtectedRoute>
-                }
-              />
-              <Route path='/terms-and-conditions' element={<TermsAndConditions />} />
-              <Route path='/privacy-policy' element={<PrivacyPolicy />} />
-            </Routes>
-          </main>
-          <Footer />
-        </div>
+                    <MultiAudioUploader onTranscriptionCreated={handleTranscriptionCreated} meetingType={meetingType} />
+                    <TranscriptionDisplay
+                      transcriptionId={transcriptionId}
+                      onSummaryGenerated={handleSummaryGenerated}
+                      meetingType={meetingType}
+                    />
+                    <SummaryEditor summaryId={summaryId} meetingType={meetingType} />
+                  </div>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* User Routes */}
+            <Route
+              path='/profile'
+              element={
+                <ProtectedRoute>
+                  <UserProfile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path='/settings'
+              element={
+                <ProtectedRoute>
+                  <UserSettings />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Subscription Routes */}
+            <Route
+              path='/subscribe'
+              element={
+                <ProtectedRoute>
+                  <SubscriptionPlans />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path='/subscription/*'
+              element={
+                <ProtectedRoute>
+                  <Routes>
+                    <Route path='success' element={<SubscriptionSuccess />} />
+                    <Route path='cancel' element={<SubscriptionCancel />} />
+                    <Route path='change' element={<PlanChange />} />
+                    <Route path='usage' element={<UsageDashboard />} />
+                  </Routes>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Admin Routes */}
+            <Route
+              path='/admin/*'
+              element={
+                <ProtectedRoute>
+                  <AdminRoute>
+                    <Routes>
+                      <Route path='dashboard' element={<AdminDashboard />} />
+                    </Routes>
+                  </AdminRoute>
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
+        </MainLayout>
       </Router>
     </AuthProvider>
   );
