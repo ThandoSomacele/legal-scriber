@@ -16,7 +16,7 @@ export default function SubscriptionPlans() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Pricing tiers configuration
+  // Keep existing tiers configuration
   const tiers = [
     {
       name: 'Basic',
@@ -65,22 +65,26 @@ export default function SubscriptionPlans() {
     },
   ];
 
-  // Handle subscription initiation
+  // Handle subscription or contact navigation
   const handleSubscribe = async tier => {
     try {
-      // Check if user is logged in
-      if (!user) {
-        // Store the selected plan in session storage
-        sessionStorage.setItem('selectedPlan', tier.id);
-        // Redirect to login page
-        navigate('/login', { state: { from: '/subscribe' } });
+      // For enterprise tier, navigate to home page contact section
+      if (tier.id === 'enterprise') {
+        navigate('/#contact');
+        // Add a small delay to ensure navigation completes
+        setTimeout(() => {
+          const contactSection = document.getElementById('contact');
+          if (contactSection) {
+            contactSection.scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 100);
         return;
       }
 
-      // Don't process enterprise subscriptions through PayFast
-      if (tier.id === 'enterprise') {
-        // TODO
-        navigate('/contact');
+      // Check if user is logged in
+      if (!user) {
+        sessionStorage.setItem('selectedPlan', tier.id);
+        navigate('/login', { state: { from: '/subscribe' } });
         return;
       }
 
@@ -110,7 +114,6 @@ export default function SubscriptionPlans() {
     } catch (error) {
       console.error('Subscription error:', error);
       setError('Failed to initiate subscription. Please try again.');
-    } finally {
       setLoadingStates(prevState => ({ ...prevState, [tier.id]: false }));
     }
   };
@@ -123,7 +126,6 @@ export default function SubscriptionPlans() {
           <p className='mt-4 text-xl text-gray-600'>Select the perfect plan for your legal transcription needs</p>
         </div>
 
-        {/* Sandbox test info component */}
         <SandboxTestInfo />
 
         <div className='mt-12 space-y-4 sm:mt-16 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-6 lg:max-w-4xl lg:mx-auto xl:max-w-none xl:grid-cols-3'>
@@ -154,7 +156,7 @@ export default function SubscriptionPlans() {
                     tier.mostPopular
                       ? 'bg-indigo-600 text-white hover:bg-indigo-700'
                       : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
-                  } disabled:opacity-50`}>
+                  } disabled:opacity-50 transition-colors duration-200`}>
                   {loadingStates[tier.id] ? (
                     <>
                       <Loader className='animate-spin -ml-1 mr-3 h-5 w-5 inline' />
