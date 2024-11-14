@@ -1,7 +1,49 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { FileText, Loader, AlertCircle, Lightbulb, Mic, Clock, Timer, Edit2, Check, X } from 'lucide-react';
+import {
+  FileText,
+  Loader,
+  AlertCircle,
+  Lightbulb,
+  Mic,
+  Clock,
+  ChevronDown,
+  ArrowUp,
+  Edit2, // Add this
+  Check, // Add this
+  X, // Add this
+} from 'lucide-react';
 import apiClient from '../apiClient';
 import Disclaimer from './Disclaimer';
+
+// ScrollIndicator component with enhanced visibility
+const ScrollIndicator = () => (
+  <div className='absolute bottom-4 left-1/2 transform -translate-x-1/2 flex flex-col items-center'>
+    <div className='text-sm font-medium text-indigo-600 mb-1 animate-pulse'>Scroll for more</div>
+    <div className='flex flex-col items-center'>
+      <ChevronDown className='w-6 h-6 text-indigo-600 animate-bounce-slow' />
+      <ChevronDown className='w-6 h-6 text-indigo-600 -mt-3 animate-bounce-slow delay-100' />
+    </div>
+  </div>
+);
+
+// ScrollToTop button component positioned relative to container
+const ScrollToTopButton = ({ onClick, isVisible }) => (
+  <button
+    onClick={onClick}
+    className={`absolute bottom-4 right-4 p-2 bg-indigo-600 text-white rounded-full shadow-lg 
+                hover:bg-indigo-700 transition-all duration-300 transform 
+                ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-16 opacity-0'}
+                focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500
+                group hover:scale-110`}
+    aria-label='Scroll to top'>
+    <ArrowUp className='w-5 h-5' />
+    {/* <span
+      className='absolute -top-8 right-0 bg-gray-900 text-white text-sm py-1 px-2 rounded opacity-0 
+                     group-hover:opacity-100 transition-opacity duration-200'>
+      Back to top
+    </span> */}
+  </button>
+);
 
 // Reusable component for editable speaker names
 const EditableSpeaker = ({ originalName, onSave }) => {
@@ -55,11 +97,95 @@ const EditableSpeaker = ({ originalName, onSave }) => {
   );
 };
 
-// Enhanced transcription content component with diarisation
+// Enhanced transcription content component with improved diarization
+// Enhanced TranscriptionContent component with scroll features
 const TranscriptionContent = ({ content, updateSpeakerName }) => {
+  // State to store speaker mappings and custom names
   const [speakerMap, setSpeakerMap] = useState({});
+  // Counter to keep track of unique speakers
+  const [speakerCount, setSpeakerCount] = useState(0);
+  // Map to store speaker roles (if available in transcription)
+  const [speakerRoles, setSpeakerRoles] = useState({});
+  const [showScrollIndicator, setShowScrollIndicator] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const contentRef = useRef(null);
 
-  // Format timestamp function
+  // Add custom styles for scrollbar and container
+  const containerStyles = `
+   relative 
+   bg-indigo-50 
+   p-4 
+   rounded-md 
+   h-96 
+   overflow-y-auto 
+   scroll-smooth
+   scrollbar-thin 
+   scrollbar-thumb-indigo-600 
+   scrollbar-track-indigo-100
+ `;
+
+  // Check if content is scrollable
+  useEffect(() => {
+    const checkScrollable = () => {
+      if (contentRef.current) {
+        const isScrollable = contentRef.current.scrollHeight > contentRef.current.clientHeight;
+        setShowScrollIndicator(isScrollable);
+      }
+    };
+
+    checkScrollable();
+    // Recheck when content changes or window resizes
+    window.addEventListener('resize', checkScrollable);
+    return () => window.removeEventListener('resize', checkScrollable);
+  }, [content]);
+
+  // Handle scroll events
+  const handleScroll = e => {
+    const scrollTop = e.target.scrollTop;
+    setShowScrollTop(scrollTop > 200);
+
+    // Hide scroll indicator once user starts scrolling
+    if (scrollTop > 20) {
+      setShowScrollIndicator(false);
+    }
+  };
+
+  // Smooth scroll to top
+  const scrollToTop = () => {
+    contentRef.current?.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    });
+  };
+
+  // Initialize speaker identification on content load
+  useEffect(() => {
+    if (content) {
+      try {
+        const contentObject = JSON.parse(content);
+        const speakers = new Set();
+
+        // Extract unique speakers from the transcription
+        contentObject.recognizedPhrases?.forEach(phrase => {
+          if (phrase.speaker) {
+            speakers.add(phrase.speaker);
+          }
+        });
+
+        // Initialize speaker count and basic role mapping
+        setSpeakerCount(speakers.size);
+        const initialRoles = {};
+        speakers.forEach(speaker => {
+          initialRoles[speaker] = `Speaker ${speaker}`;
+        });
+        setSpeakerRoles(initialRoles);
+      } catch (error) {
+        console.error('Error processing speakers:', error);
+      }
+    }
+  }, [content]);
+
+  // Format timestamp for display
   const formatTime = seconds => {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
@@ -67,31 +193,31 @@ const TranscriptionContent = ({ content, updateSpeakerName }) => {
     return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Handle speaker name updates
+  // Handle speaker name updates with persistence
   const handleSpeakerUpdate = (speakerId, newName) => {
-    setSpeakerMap(prev => ({ ...prev, [speakerId]: newName }));
+    setSpeakerMap(prev => {
+      const updated = { ...prev, [speakerId]: newName };
+      // Store in localStorage for persistence across sessions
+      localStorage.setItem('speakerMap', JSON.stringify(updated));
+      return updated;
+    });
     if (updateSpeakerName) {
       updateSpeakerName(speakerId, newName);
     }
   };
 
-  // Render speaker's name or number
+  // Get display name for a speaker
   const getSpeakerDisplay = speakerId => {
-    // First check if we have a custom name in our map
+    // Check custom name mapping first
     if (speakerMap[speakerId]) {
       return speakerMap[speakerId];
     }
-
-    // Convert speakerId to string to ensure we can use includes
-    const speakerIdString = String(speakerId);
-
-    // Check if it already has "Speaker" prefix
-    if (speakerIdString.includes('Speaker')) {
-      return speakerIdString;
+    // Then check role mapping
+    if (speakerRoles[speakerId]) {
+      return speakerRoles[speakerId];
     }
-
-    // If it's just a number or other identifier, format it as "Speaker X"
-    return `Speaker ${speakerIdString}`;
+    // Default to basic speaker number
+    return `Speaker ${speakerId}`;
   };
 
   if (!content) {
@@ -105,105 +231,46 @@ const TranscriptionContent = ({ content, updateSpeakerName }) => {
     }
 
     return (
-      <div className='bg-indigo-50 p-4 rounded-md max-h-96 overflow-y-auto space-y-4'>
-        {contentObject.recognizedPhrases.map((phrase, index) => {
-          const startTime = Math.floor(phrase.offsetInTicks / 10000000);
-          const duration = Math.floor(phrase.durationInTicks / 10000000);
-          // Extract speaker information - the API will return a number for identified speakers
-          const speakerId = phrase.speaker ? `Speaker ${phrase.speaker}` : `Speaker ${index + 1}`;
+      <div className='relative'>
+        <div ref={contentRef} onScroll={handleScroll} className={containerStyles}>
+          {/* Your existing content rendering code */}
+          {contentObject.recognizedPhrases.map((phrase, index) => {
+            const startTime = Math.floor(phrase.offsetInTicks / 10000000);
+            const duration = Math.floor(phrase.durationInTicks / 10000000);
+            const speakerId = phrase.speaker || `Speaker ${index + 1}`;
 
-          return (
-            <div key={index} className='bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow'>
-              <div className='flex flex-col sm:flex-row sm:items-center justify-between mb-2'>
-                <EditableSpeaker
-                  originalName={speakerMap[speakerId] || speakerId}
-                  onSave={newName => handleSpeakerUpdate(speakerId, newName)}
-                />
-                <div className='flex items-center text-sm text-indigo-600 mt-2 sm:mt-0'>
-                  <Clock className='w-4 h-4 mr-1' />
-                  <span>{formatTime(startTime)}</span>
-                  <span className='mx-1'>-</span>
-                  <span>{formatTime(startTime + duration)}</span>
+            return (
+              <div key={index} className='bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow mb-4'>
+                <div className='flex flex-col sm:flex-row sm:items-center justify-between mb-2'>
+                  <EditableSpeaker originalName={speakerId} onSave={newName => updateSpeakerName(speakerId, newName)} />
+                  <div className='flex items-center text-sm text-indigo-600 mt-2 sm:mt-0'>
+                    <Clock className='w-4 h-4 mr-1' />
+                    <span>{formatTime(startTime)}</span>
+                    <span className='mx-1'>-</span>
+                    <span>{formatTime(startTime + duration)}</span>
+                  </div>
                 </div>
+                <p className='text-gray-800 pl-4 border-l-4 border-indigo-100'>{phrase.nBest[0].display}</p>
               </div>
-              <p className='text-gray-800 pl-4 border-l-4 border-indigo-100'>{phrase.nBest[0].display}</p>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+
+        {/* Enhanced scroll indicators */}
+        {showScrollIndicator && (
+          <div className='absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-indigo-50 pointer-events-none'>
+            <ScrollIndicator />
+          </div>
+        )}
+
+        {/* Repositioned scroll to top button */}
+        <ScrollToTopButton onClick={scrollToTop} isVisible={showScrollTop} />
       </div>
     );
   } catch (e) {
     console.error('Error parsing transcription content:', e);
     return <p className='text-gray-600'>Error displaying transcription content.</p>;
   }
-};
-
-// Processing status component
-const ProcessingStatus = ({ estimatedTime, audioFilesCount, calculateEstimatedTime }) => {
-  const dotsRef = useRef('');
-  const [dots, setDots] = useState('');
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      dotsRef.current = dotsRef.current.length >= 3 ? '' : dotsRef.current + '.';
-      setDots(dotsRef.current);
-    }, 500);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const formatTimeRemaining = seconds => {
-    if (!seconds) return '';
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return seconds < 60
-      ? `About ${seconds} seconds remaining`
-      : `About ${minutes}:${remainingSeconds.toString().padStart(2, '0')} minutes remaining`;
-  };
-
-  const progress = Math.max(10, Math.min(90, 100 - (estimatedTime / calculateEstimatedTime(audioFilesCount)) * 100));
-
-  return (
-    <div className='bg-indigo-50 p-6 rounded-lg'>
-      <div className='flex flex-col items-center space-y-4'>
-        <div className='relative'>
-          <div className='absolute inset-0 bg-indigo-200 rounded-full animate-ping opacity-25'></div>
-          <Mic className='w-12 h-12 text-indigo-600 relative z-10 animate-pulse' />
-        </div>
-
-        <div className='space-y-2 text-center'>
-          <h3 className='text-lg font-medium text-indigo-700'>Processing Audio{dots}</h3>
-          <p className='text-sm text-indigo-600'>Converting your audio to text</p>
-
-          <div className='flex items-center justify-center text-sm text-indigo-500 mt-2'>
-            <Timer className='w-4 h-4 mr-1' />
-            <span>{formatTimeRemaining(estimatedTime)}</span>
-          </div>
-
-          <div className='text-xs text-indigo-400 mt-1'>
-            {audioFilesCount > 1 ? `Processing ${audioFilesCount} audio files` : 'Processing audio file'}
-          </div>
-        </div>
-
-        <div className='w-full max-w-md h-2 bg-indigo-100 rounded-full overflow-hidden'>
-          <div
-            className='h-full bg-indigo-600 rounded-full transition-all duration-1000'
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-
-        <div className='flex space-x-2'>
-          {[...Array(3)].map((_, i) => (
-            <div
-              key={i}
-              className='w-2 h-2 bg-indigo-600 rounded-full animate-bounce'
-              style={{ animationDelay: `${i * 0.2}s` }}
-            />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
 };
 
 // Main TranscriptionDisplay component
@@ -216,36 +283,7 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
   const [startTime, setStartTime] = useState(null);
   const [speakerNames, setSpeakerNames] = useState({});
 
-  const calculateEstimatedTime = useCallback(audioUrlsCount => {
-    const baseTime = 30;
-    const perFileTime = 20;
-    return baseTime + audioUrlsCount * perFileTime;
-  }, []);
-
-  useEffect(() => {
-    let interval;
-    if (
-      startTime &&
-      estimatedTime &&
-      (transcription?.status === 'processing' || transcription?.status === 'submitted')
-    ) {
-      interval = setInterval(() => {
-        const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
-        const remainingSeconds = Math.max(0, estimatedTime - elapsedSeconds);
-        setEstimatedTime(remainingSeconds);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [startTime, estimatedTime, transcription?.status]);
-
-  useEffect(() => {
-    if (transcription?.audioFileUrls && !startTime) {
-      const initialEstimate = calculateEstimatedTime(transcription.audioFileUrls.length);
-      setEstimatedTime(initialEstimate);
-      setStartTime(Date.now());
-    }
-  }, [transcription?.audioFileUrls, startTime, calculateEstimatedTime]);
-
+  // Handle transcription fetching
   const fetchTranscription = useCallback(async () => {
     if (!transcriptionId) return;
 
@@ -276,14 +314,15 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
     fetchTranscription();
   }, [fetchTranscription]);
 
+  // Handle speaker name updates
   const handleSpeakerNameUpdate = (speakerId, newName) => {
     setSpeakerNames(prev => ({
       ...prev,
       [speakerId]: newName,
     }));
-    // Here you could add persistence logic if needed
   };
 
+  // Handle summary generation
   const handleSummarize = async () => {
     if (!transcription) return;
 
@@ -325,12 +364,6 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
           <Loader className='animate-spin text-indigo-600 mb-4' size={48} />
           <span className='text-lg text-indigo-600'>Fetching transcription status...</span>
         </div>
-      ) : transcription?.status === 'processing' || transcription?.status === 'submitted' ? (
-        <ProcessingStatus
-          estimatedTime={estimatedTime}
-          audioFilesCount={transcription?.audioFileUrls?.length || 1}
-          calculateEstimatedTime={calculateEstimatedTime}
-        />
       ) : transcription?.status === 'completed' ? (
         <>
           <div className='mb-4'>
@@ -338,13 +371,10 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
               <strong>Meeting Type:</strong> {transcription.meetingType}
             </p>
           </div>
-          {transcription.audioFileUrls.map((url, index) => (
+          {transcription.content.map((content, index) => (
             <div key={index} className='mb-6'>
               <h3 className='text-lg font-semibold text-indigo-600 mb-2'>Audio File {index + 1}</h3>
-              <TranscriptionContent
-                content={transcription.content[index]}
-                updateSpeakerName={handleSpeakerNameUpdate}
-              />
+              <TranscriptionContent content={content} updateSpeakerName={handleSpeakerNameUpdate} />
             </div>
           ))}
           <button
@@ -387,4 +417,6 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
   );
 };
 
+// Export both named components and default export
+export { TranscriptionContent, EditableSpeaker };
 export default TranscriptionDisplay;
