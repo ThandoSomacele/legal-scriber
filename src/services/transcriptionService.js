@@ -1,3 +1,5 @@
+// transcriptionService.js
+import logger, { logTranscriptionStatus, logError } from '../utils/logger.js';
 import Transcription from '../models/Transcription.js';
 import {
   BlobServiceClient,
@@ -27,7 +29,7 @@ const generateSasUrl = blobName => {
   return `https://${process.env.AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/${process.env.VITE_AUDIOS_CONTAINER_NAME}/${blobName}?${blobSAS}`;
 };
 
-export const uploadAndTranscribe = async (files, meetingType, userId) => {
+const uploadAndTranscribe = async (files, meetingType, userId) => {
   try {
     if (!files || !Array.isArray(files) || files.length === 0) {
       throw new Error('No files provided for transcription');
@@ -71,56 +73,35 @@ export const uploadAndTranscribe = async (files, meetingType, userId) => {
       meetingType,
       audioFileUrls,
       status: 'submitted',
-      transcriptionUrl: transcriptionResponse.data.self, // Save the transcription URL
+      transcriptionUrl: transcriptionResponse.data.self,
     });
 
     await transcription.save();
-
-    console.log(`Transcription ${transcription._id} submitted successfully`);
+    logger.info(`Transcription ${transcription._id} submitted successfully`);
     return transcription;
   } catch (error) {
-    console.error('Error in uploadAndTranscribe:', error);
+    logger.error('Error in uploadAndTranscribe:', error);
     throw error;
   }
 };
 
-export const checkTranscriptionStatus = async transcription => {
+// Make updateTranscriptionStatus exportable
+export const updateTranscriptionStatus = async (transcription, status, azureResponse = null) => {
   try {
-    console.log(`Checking status for transcription: ${transcription._id}`);
-
-    if (!transcription.transcriptionUrl) {
-      console.error(`Transcription URL is undefined for transcription: ${transcription._id}`);
-      transcription.status = 'error';
-      transcription.errorDetails = 'Transcription URL is missing';
-      await transcription.save();
-      return 'error';
-    }
-
-    console.log(`Transcription URL: ${transcription.transcriptionUrl}`);
-
-    const response = await axios.get(transcription.transcriptionUrl, {
-      headers: {
-        'Ocp-Apim-Subscription-Key': process.env.VITE_SPEECH_KEY,
-      },
-    });
-
-    // console.log(`Azure response:`, response.data);
-
-    const status = response.data.status;
-    console.log(`Transcription ${transcription._id} status:`, status);
-
-    if (status === 'Succeeded') {
-      console.log(`Transcription ${transcription._id} succeeded, fetching files`);
-      // Fetch the transcription files
-      const filesResponse = await axios.get(response.data.links.files, {
+    if (status === 'completed' && azureResponse) {
+      const filesResponse = await axios.get(azureResponse.data.links.files, {
         headers: {
           'Ocp-Apim-Subscription-Key': process.env.VITE_SPEECH_KEY,
         },
       });
 
-      // console.log(`Files response:`, filesResponse.data);
+      const files = filesResponse.data.values;
+      const transcriptionFiles = files.filter(file => file.kind === 'Transcription');
 
-      const transcriptionFiles = filesResponse.data.values.filter(file => file.kind === 'Transcription');
+      if (!transcriptionFiles || transcriptionFiles.length === 0) {
+        throw new Error('No transcription files found');
+      }
+
       const contents = await Promise.all(
         transcriptionFiles.map(async file => {
           const contentResponse = await axios.get(file.links.contentUrl, {
@@ -133,69 +114,70 @@ export const checkTranscriptionStatus = async transcription => {
       );
 
       transcription.content = contents;
-      transcription.status = 'completed';
       transcription.completedAt = new Date();
-    } else if (status === 'Failed') {
-      transcription.status = 'failed';
-      transcription.errorDetails = 'Transcription failed on Azure service';
-    } else {
-      transcription.status = 'processing';
     }
 
+    transcription.status = status;
     await transcription.save();
-    console.log(`Updated transcription ${transcription._id} status: ${transcription.status}`);
-    return transcription.status;
+
+    logger.info(`Updated transcription ${transcription._id} status to ${status}`);
   } catch (error) {
-    console.error('Error checking transcription status:', error);
-    console.error('Error details:', error.response?.data);
-    transcription.status = 'error';
-    transcription.errorDetails = `Error checking transcription status: ${error.message}`;
-    await transcription.save();
-    return 'error';
+    logger.error(`Error updating transcription status:`, error);
+    throw error;
   }
 };
 
-const processTranscription = async transcription => {
+// Rename to match the import in cronService
+const checkAndUpdateTranscriptionStatus = async transcription => {
   try {
-    console.log(`Starting transcription process for ${transcription._id}`);
-    transcription.status = 'processing';
-    await transcription.save();
+    logTranscriptionStatus(transcription._id, transcription.status);
 
-    const transcriptionApiUrl = `https://${process.env.VITE_SERVICE_REGION}.api.cognitive.microsoft.com/speechtotext/v3.2/transcriptions`;
+    if (!transcription.transcriptionUrl) {
+      const error = new Error('Transcription URL is missing');
+      logError(error, {
+        transcriptionId: transcription._id,
+      });
+      await updateTranscriptionStatus(transcription, 'error');
+      return 'error';
+    }
 
-    const requestBody = {
-      contentUrls: transcription.audioFileUrls,
-      properties: {
-        diarizationEnabled: true,
-        wordLevelTimestampsEnabled: true,
-        punctuationMode: 'DictatedAndAutomatic',
-        profanityFilterMode: 'Masked',
-      },
-      locale: 'en-GB',
-      displayName: `Transcription_${transcription.meetingType}_${Date.now()}`,
-    };
-
-    console.log('Sending request to Azure Speech Service:', JSON.stringify(requestBody, null, 2));
-
-    const transcriptionResponse = await axios.post(transcriptionApiUrl, requestBody, {
+    const response = await axios.get(transcription.transcriptionUrl, {
       headers: {
-        'Content-Type': 'application/json',
         'Ocp-Apim-Subscription-Key': process.env.VITE_SPEECH_KEY,
       },
     });
 
-    console.log('Received response from Azure Speech Service:', JSON.stringify(transcriptionResponse.data, null, 2));
+    const azureStatus = response.data.status;
+    let status;
 
-    transcription.transcriptionUrl = transcriptionResponse.data.self;
-    transcription.status = 'submitted';
-    await transcription.save();
+    // Map Azure status to our application status
+    switch (azureStatus) {
+      case 'NotStarted':
+        status = 'pending';
+        break;
+      case 'Running':
+        status = 'processing';
+        break;
+      case 'Succeeded':
+        status = 'completed';
+        break;
+      case 'Failed':
+        status = 'failed';
+        break;
+      default:
+        status = 'error';
+    }
 
-    console.log(`Transcription ${transcription._id} submitted successfully`);
+    await updateTranscriptionStatus(transcription, status, response);
+    return status;
   } catch (error) {
-    console.error('Error processing transcription:', error);
-    console.error('Error details:', error.response?.data);
-    transcription.status = 'failed';
-    transcription.errorDetails = error.response?.data?.error?.message || error.message || 'Unknown error occurred';
-    await transcription.save();
+    logError(error, {
+      transcriptionId: transcription._id,
+      action: 'check_status',
+    });
+    await updateTranscriptionStatus(transcription, 'error');
+    return 'error';
   }
 };
+
+export { uploadAndTranscribe, checkAndUpdateTranscriptionStatus };
