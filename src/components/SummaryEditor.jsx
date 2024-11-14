@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import MarkdownEditor from 'react-markdown-editor-lite';
 import 'react-markdown-editor-lite/lib/index.css';
-import { Save, Edit, Copy, Loader, AlertCircle } from 'lucide-react';
+import { Save, Edit, Copy, Loader, AlertCircle, Check } from 'lucide-react';
 import apiClient from '../apiClient';
 import MarkdownCheatsheet from './MarkdownCheatsheet';
 import Disclaimer from './Disclaimer';
@@ -14,6 +14,8 @@ const SummaryEditor = ({ summaryId, meetingType }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  // Add state for copy feedback
+  const [showCopySuccess, setShowCopySuccess] = useState(false);
 
   useEffect(() => {
     const fetchSummary = async () => {
@@ -67,15 +69,19 @@ const SummaryEditor = ({ summaryId, meetingType }) => {
     }
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(summary).then(
-      () => {
-        console.log('Summary copied to clipboard');
-      },
-      err => {
-        console.error('Failed to copy text: ', err);
-      }
-    );
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(summary);
+      // Show success indicator
+      setShowCopySuccess(true);
+      // Hide the success indicator after 2 seconds
+      setTimeout(() => {
+        setShowCopySuccess(false);
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+      setError('Failed to copy text to clipboard');
+    }
   };
 
   const toggleEditing = () => {
@@ -154,17 +160,36 @@ const SummaryEditor = ({ summaryId, meetingType }) => {
               </button>
             )}
 
+            {/* Updated copy button with success indicator */}
             <button
               onClick={handleCopy}
-              className='flex items-center px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors'>
-              <Copy className='mr-2' size={18} />
-              Copy
+              className='flex items-center px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors relative'>
+              {showCopySuccess ? (
+                <>
+                  <Check className='mr-2' size={18} />
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <Copy className='mr-2' size={18} />
+                  Copy
+                </>
+              )}
             </button>
           </div>
 
           {/* Markdown cheatsheet */}
           <MarkdownCheatsheet />
         </>
+      )}
+
+      {error && (
+        <div className='mt-4 p-2 bg-red-100 text-red-700 rounded-md'>
+          <p className='text-sm flex items-center'>
+            <AlertCircle className='mr-2' size={18} />
+            {error}
+          </p>
+        </div>
       )}
     </div>
   );
