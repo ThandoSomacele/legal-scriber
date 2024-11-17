@@ -3,29 +3,24 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
-import Header from './components/layouts/Header';
 import Home from './components/layouts/Home';
-import Dashboard from './components/Dashboard';
 import MainLayout from './components/layouts/MainLayout';
 import MultiAudioUploader from './components/MultiAudioUploader';
 import TranscriptionDisplay from './components/TranscriptionDisplay';
 import SummaryEditor from './components/SummaryEditor';
-import Summaries from './components/Summaries';
-import Transcriptions from './components/Transcriptions';
-import Footer from './components/layouts/Footer';
 import TermsAndConditions from './components/TermsAndConditions';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import SignUp from './components/SignUp';
 import Login from './components/Login';
 import UserProfile from './components/UserProfile';
 import UserSettings from './components/UserSettings';
-import BillingPage from './components/BillingPage';
 import SubscriptionPlans from './components/SubscriptionPlans';
 import SubscriptionSuccess from './components/SubscriptionSuccess';
 import SubscriptionCancel from './components/SubscriptionCancel';
 import PlanChange from './components/PlanChange';
 import UsageDashboard from './components/UsageDashboard';
 import AdminDashboard from './components/AdminDashboard';
+import EmailConfirmation from './components/EmailConfirmation';
 
 function App() {
   const [transcriptionId, setTranscriptionId] = useState(null);
@@ -78,6 +73,7 @@ function App() {
             <Route path='/' element={<Home />} />
             <Route path='/signup' element={<SignUp />} />
             <Route path='/login' element={<Login />} />
+            <Route path='/confirm-email/:token' element={<EmailConfirmation />} />
             <Route path='/terms-and-conditions' element={<TermsAndConditions />} />
             <Route path='/privacy-policy' element={<PrivacyPolicy />} />
 
