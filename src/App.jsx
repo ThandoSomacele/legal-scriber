@@ -12,6 +12,8 @@ import TermsAndConditions from './components/TermsAndConditions';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import SignUp from './components/SignUp';
 import Login from './components/Login';
+import ForgotPassword from './components/ForgotPassword';
+import ResetPassword from './components/ResetPassword';
 import UserProfile from './components/UserProfile';
 import UserSettings from './components/UserSettings';
 import SubscriptionPlans from './components/SubscriptionPlans';
@@ -73,6 +75,8 @@ function App() {
             <Route path='/' element={<Home />} />
             <Route path='/signup' element={<SignUp />} />
             <Route path='/login' element={<Login />} />
+            <Route path='/forgot-password' element={<ForgotPassword />} />
+            <Route path='/reset-password/:token' element={<ResetPassword />} />
             <Route path='/confirm-email/:token' element={<EmailConfirmation />} />
             <Route path='/terms-and-conditions' element={<TermsAndConditions />} />
             <Route path='/privacy-policy' element={<PrivacyPolicy />} />
