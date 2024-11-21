@@ -2,6 +2,7 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto'; // Add this import for token hashing
 import User from '../models/User.js';
 import emailService from '../services/azureEmailService.js';
 import logger from '../utils/logger.js';
@@ -38,12 +39,20 @@ router.post('/signup', async (req, res) => {
     await user.save();
     logger.info(`New user created: ${user._id}`);
 
-    // Send confirmation email
+    // Send confirmation email using Azure Communication Services
     try {
-      await emailService.sendSignupConfirmation(user, confirmationToken);
-      logger.info(`Confirmation email handled for: ${email}`);
+      const emailResult = await emailService.sendSignupConfirmation(user, confirmationToken);
+      logger.info(`Confirmation email sent successfully for: ${email}`, {
+        operationId: emailResult.id,
+        status: emailResult.status,
+      });
     } catch (emailError) {
-      logger.warn('Error handling confirmation email:', emailError);
+      logger.error('Error sending confirmation email:', {
+        error: emailError.message,
+        userId: user._id,
+        email: email,
+      });
+      // Don't expose email sending errors to the client
       // Continue with signup even if email fails
     }
 
@@ -63,7 +72,7 @@ router.post('/signup', async (req, res) => {
   }
 });
 
-// Email confirmation endpoint
+// Email confirmation endpoint - remains mostly the same but with improved error handling
 router.get('/confirm-email/:token', async (req, res) => {
   try {
     const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
@@ -89,6 +98,60 @@ router.get('/confirm-email/:token', async (req, res) => {
   } catch (error) {
     logger.error('Email confirmation error:', error);
     res.status(500).json({ message: 'Error confirming email' });
+  }
+});
+
+// Password reset request endpoint with Azure email service
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      // Return 200 even if user not found for security
+      return res.status(200).json({
+        message: 'If an account exists with that email, you will receive password reset instructions.',
+      });
+    }
+
+    // Generate reset token
+    const resetToken = user.generatePasswordResetToken();
+    await user.save();
+
+    // Send password reset email using Azure Communication Services
+    try {
+      const emailResult = await emailService.sendPasswordResetEmail(user, resetToken);
+      logger.info(`Password reset email sent successfully for: ${email}`, {
+        operationId: emailResult.id,
+        status: emailResult.status,
+      });
+    } catch (emailError) {
+      logger.error('Error sending password reset email:', {
+        error: emailError.message,
+        userId: user._id,
+        email: email,
+      });
+
+      // Reset the token if email fails
+      user.passwordResetToken = undefined;
+      user.passwordResetExpires = undefined;
+      await user.save();
+
+      // Don't expose email sending errors to the client
+      return res.status(200).json({
+        message: 'If an account exists with that email, you will receive password reset instructions.',
+      });
+    }
+
+    res.status(200).json({
+      message:
+        process.env.NODE_ENV === 'development'
+          ? 'Password reset requested (check console for email details)'
+          : 'If an account exists with that email, you will receive password reset instructions.',
+    });
+  } catch (error) {
+    logger.error('Password reset request error:', error);
+    res.status(500).json({ message: 'Error processing password reset request' });
   }
 });
 
