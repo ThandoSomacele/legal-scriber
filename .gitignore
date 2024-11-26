@@ -9,9 +9,13 @@ pnpm-debug.log*
 # Vite build output
 dist/
 
-# Environment variable files
+# Environment variables
 .env
 .env.local
+.env.*.local
+
+# But allow example file
+!.env.example
 
 # System-specific files
 .DS_Store

@@ -9,6 +9,7 @@ services:
     volumes:
       - ./src:/app/src
       - ./server.js:/app/server.js
+      - ./.env:/app/.env
     environment:
       - AZURE_OPENAI_ACCOUNT_NAME=${AZURE_OPENAI_ACCOUNT_NAME}
       - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}

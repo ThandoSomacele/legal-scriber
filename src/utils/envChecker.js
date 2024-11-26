@@ -1,3 +1,4 @@
+// src/utils/envChecker.js
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import dotenv from 'dotenv';
@@ -10,30 +11,19 @@ const rootDir = join(__dirname, '..', '..');
 export function loadAndCheckEnv() {
   // First, check if .env file exists
   const envPath = join(rootDir, '.env');
-  if (!fs.existsSync(envPath)) {
-    console.error('❌ .env file not found in project root!');
-    console.log(`Expected location: ${envPath}`);
-    process.exit(1);
-  }
 
-  // Load .env file
-  const result = dotenv.config({ path: envPath });
-
-  if (result.error) {
-    console.error('❌ Error loading .env file:', result.error);
-    process.exit(1);
+  // Try to load .env file if it exists
+  if (fs.existsSync(envPath)) {
+    const result = dotenv.config({ path: envPath });
+    if (result.error) {
+      console.warn('⚠️ Warning loading .env file:', result.error);
+    }
+  } else {
+    console.log('ℹ️ No .env file found, checking environment variables...');
   }
 
   // Required environment variables
-  const requiredVars = [
-    'AZURE_OPENAI_API_KEY',
-    'AZURE_OPENAI_ENDPOINT',
-    'AZURE_OPENAI_ACCOUNT_NAME',
-    'VITE_SPEECH_KEY',
-    'VITE_SERVICE_REGION',
-    'COSMOSDB_CONNECTION_STRING',
-    'JWT_SECRET',
-  ];
+  const requiredVars = ['AZURE_OPENAI_API_KEY', 'AZURE_OPENAI_ENDPOINT', 'COSMOSDB_CONNECTION_STRING', 'JWT_SECRET'];
 
   // Check each required variable
   const missing = requiredVars.filter(varName => !process.env[varName]);
