@@ -1,4 +1,5 @@
 // server.js
+// At the top of server.js
 import dotenv from 'dotenv';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
@@ -16,11 +17,18 @@ import dbConnect from './src/db.js';
 
 // Load environment variables
 const __dirname = dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: join(__dirname, '.env') });
+
+// Try loading .env but don't fail if not found
+try {
+  dotenv.config({ path: join(__dirname, '.env') });
+} catch (err) {
+  console.log('No .env file found, using environment variables');
+}
 
 // Verify required environment variables
 const requiredVars = ['AZURE_OPENAI_API_KEY', 'AZURE_OPENAI_ENDPOINT', 'COSMOSDB_CONNECTION_STRING'];
 const missingVars = requiredVars.filter(varName => !process.env[varName]);
+
 if (missingVars.length > 0) {
   logger.error('Missing required environment variables:', missingVars);
   process.exit(1);

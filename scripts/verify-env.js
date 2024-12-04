@@ -1,44 +1,30 @@
 // scripts/verify-env.js
-import dotenv from 'dotenv';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
-import fs from 'fs';
+import logger from '../utils/logger.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const envPath = join(__dirname, '..', '.env');
+export function loadAndCheckEnv() {
+  // Required environment variables
+  const requiredVars = [
+    'AZURE_OPENAI_API_KEY',
+    'AZURE_OPENAI_ENDPOINT',
+    'AZURE_OPENAI_ACCOUNT_NAME',
+    'VITE_SPEECH_KEY',
+    'VITE_SERVICE_REGION',
+    'COSMOSDB_CONNECTION_STRING',
+    'JWT_SECRET',
+  ];
 
-console.log('Checking environment configuration...');
-console.log('Environment file path:', envPath);
+  // Check each required variable
+  const missing = requiredVars.filter(varName => !process.env[varName]);
 
-// Check if .env file exists
-if (!fs.existsSync(envPath)) {
-  console.error('❌ .env file not found!');
-  process.exit(1);
-}
-
-// Load environment variables
-const result = dotenv.config({ path: envPath });
-if (result.error) {
-  console.error('❌ Error loading .env file:', result.error);
-  process.exit(1);
-}
-
-// Define required variables
-const requiredVars = ['AZURE_OPENAI_API_KEY', 'AZURE_OPENAI_ENDPOINT', 'COSMOSDB_CONNECTION_STRING'];
-
-// Check each variable
-let hasErrors = false;
-requiredVars.forEach(varName => {
-  if (!process.env[varName]) {
-    console.error(`❌ Missing required variable: ${varName}`);
-    hasErrors = true;
-  } else {
-    console.log(`✅ ${varName} is set`);
+  if (missing.length > 0) {
+    console.error('❌ Missing required environment variables:');
+    missing.forEach(varName => {
+      console.error(`   - ${varName}`);
+    });
+    process.exit(1);
   }
-});
 
-if (hasErrors) {
-  process.exit(1);
-} else {
-  console.log('✅ All required environment variables are set');
+  // Log success
+  console.log('✅ Environment variables loaded successfully');
+  console.log('Current environment:', process.env.NODE_ENV);
 }

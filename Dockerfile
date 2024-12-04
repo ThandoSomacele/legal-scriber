@@ -41,6 +41,7 @@ RUN npm ci --only=production
 
 # Environment setup
 ENV NODE_ENV=production
+ENV PORT=8000
 
 # Expose only the server port for production
 EXPOSE 8000
