@@ -1,5 +1,6 @@
 // src/middleware/sanitizeQuery.js
-import { escape } from 'validator';
+import validator from 'validator';
+const { escape } = validator;
 
 // Middleware to sanitize MongoDB queries
 const sanitizeQuery = (req, res, next) => {

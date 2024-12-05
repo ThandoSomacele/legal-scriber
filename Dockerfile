@@ -29,22 +29,25 @@ CMD ["npm", "run", "dev"]
 # Production stage
 FROM node:20-alpine AS production
 WORKDIR /app
-COPY --from=build /app/dist ./dist
-COPY server.js ./
-COPY package*.json ./
-COPY vite.config.js ./
-COPY envConfig.js ./
-COPY . .
 
-# Install only production dependencies
+# Copy package files
+COPY package*.json ./
+
+# Install production dependencies
 RUN npm ci --only=production
 
-# Environment setup
+# Copy the built application and necessary files
+COPY dist/ ./dist/
+COPY server.js ./
+COPY src/ ./src/
+COPY envConfig.js ./
+
+# Set production environment
 ENV NODE_ENV=production
 ENV PORT=8000
 
-# Expose only the server port for production
+# Expose the port
 EXPOSE 8000
 
 # Start the server
-CMD ["npm", "start"]
+CMD ["node", "server.js"]
