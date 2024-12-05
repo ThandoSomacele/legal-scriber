@@ -4,10 +4,12 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import envConfig from '../../envConfig.js';
+import sanitizeQuery from './sanitizeQuery.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const configureMiddleware = app => {
+  app.use(sanitizeQuery);
   // CORS configuration
   app.use(
     cors({
