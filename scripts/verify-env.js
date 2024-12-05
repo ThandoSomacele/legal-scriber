@@ -1,8 +1,19 @@
 // scripts/verify-env.js
-import logger from '../utils/logger.js';
+import dotenv from 'dotenv';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 
-export function loadAndCheckEnv() {
-  // Required environment variables
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+function verifyEnv() {
+  try {
+    // Try loading .env but don't fail if not found in production
+    dotenv.config({ path: join(__dirname, '..', '.env') });
+  } catch (err) {
+    console.log('No .env file found, using environment variables');
+  }
+
+  // List of required environment variables
   const requiredVars = [
     'AZURE_OPENAI_API_KEY',
     'AZURE_OPENAI_ENDPOINT',
@@ -13,7 +24,6 @@ export function loadAndCheckEnv() {
     'JWT_SECRET',
   ];
 
-  // Check each required variable
   const missing = requiredVars.filter(varName => !process.env[varName]);
 
   if (missing.length > 0) {
@@ -24,7 +34,7 @@ export function loadAndCheckEnv() {
     process.exit(1);
   }
 
-  // Log success
-  console.log('✅ Environment variables loaded successfully');
-  console.log('Current environment:', process.env.NODE_ENV);
+  console.log('✅ Environment variables verified successfully');
 }
+
+verifyEnv();

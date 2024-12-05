@@ -9,8 +9,6 @@
     "start": "npm run verify-env && node server.js",
     "build": "vite build",
     "docker:dev": "docker compose down --remove-orphans && docker compose build dev && docker compose up dev",
-    "docker:build": "docker compose -f docker-compose.yml -f docker-compose.prod.yml build prod && docker tag legal-scriber-prod:latest thandosomacele/legal-scriber-prod:latest",
-    "docker:push": "docker push thandosomacele/legal-scriber-prod:latest",
     "test-db": "node scripts/test-db-connection.js"
   },
   "dependencies": {

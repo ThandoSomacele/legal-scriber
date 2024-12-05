@@ -1,5 +1,4 @@
-// server.js
-// At the top of server.js
+// Import dependencies
 import dotenv from 'dotenv';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
@@ -15,26 +14,18 @@ import { setupRoutes } from './src/config/routes.js';
 import envConfig from './envConfig.js';
 import dbConnect from './src/db.js';
 
-// Load environment variables
+// Set up dirname for ES modules
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// Try loading .env but don't fail if not found
+// Initialize express application
+const app = express();
+
+// Load environment variables
 try {
-  dotenv.config({ path: join(__dirname, '.env') });
-} catch (err) {
+  dotenv.config();
+} catch (error) {
   console.log('No .env file found, using environment variables');
 }
-
-// Verify required environment variables
-const requiredVars = ['AZURE_OPENAI_API_KEY', 'AZURE_OPENAI_ENDPOINT', 'COSMOSDB_CONNECTION_STRING'];
-const missingVars = requiredVars.filter(varName => !process.env[varName]);
-
-if (missingVars.length > 0) {
-  logger.error('Missing required environment variables:', missingVars);
-  process.exit(1);
-}
-
-const app = express();
 
 // Connect to database
 dbConnect();
@@ -49,6 +40,10 @@ setupRoutes(app);
 setupCronJobs();
 
 // Health check endpoints
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'healthy' });
+});
+
 app.get('/api/health', async (req, res) => {
   try {
     const isMongoConnected = mongoose.connection.readyState === 1;
@@ -62,7 +57,7 @@ app.get('/api/health', async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error('Health check failed:', error);
+    console.error('Health check failed:', error);
     res.status(500).json({
       status: 'ERROR',
       error: error.message,
@@ -70,12 +65,13 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+// Database health check endpoint
 app.get('/api/db-health', async (req, res) => {
   try {
     await mongoose.connection.db.admin().ping();
     res.json({ status: 'ok', message: 'Database connected' });
   } catch (error) {
-    logger.error('Database health check failed:', error);
+    console.error('Database health check failed:', error);
     res.status(500).json({
       status: 'error',
       message: 'Database connection failed',
@@ -83,6 +79,24 @@ app.get('/api/db-health', async (req, res) => {
     });
   }
 });
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(500).json({
+    error: 'Something went wrong!',
+    message: process.env.NODE_ENV === 'development' ? err.message : undefined,
+  });
+});
+
+// Serve static files in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, 'dist')));
+
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+  });
+}
 
 // Start server
 const port = process.env.PORT || 8000;
@@ -92,12 +106,15 @@ app.listen(port, '0.0.0.0', () => {
   logger.info(`API URL: ${envConfig.apiUrl}`);
 });
 
-// Error handling
+// Global error handlers
 process.on('unhandledRejection', error => {
-  logger.error('Unhandled Rejection:', error);
+  logger.error('Unhandled Promise Rejection:', error);
 });
 
 process.on('uncaughtException', error => {
   logger.error('Uncaught Exception:', error);
+  // Exit process on uncaught exceptions
   process.exit(1);
 });
+
+export default app;
