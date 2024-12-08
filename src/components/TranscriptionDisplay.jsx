@@ -277,7 +277,10 @@ const TranscriptionContent = ({ content, updateSpeakerName }) => {
 const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType }) => {
   const [transcription, setTranscription] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState({
+    message: '',
+    details: '',
+  });
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [estimatedTime, setEstimatedTime] = useState(null);
   const [startTime, setStartTime] = useState(null);
@@ -292,14 +295,25 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
       setTranscription(response.data);
       localStorage.setItem('transcription', JSON.stringify(response.data));
 
+      if (response.data.status === 'error') {
+        setError({
+          message: 'Transcription failed',
+          details: response.data.errorDetails || 'An error occurred during processing',
+        });
+        setIsLoading(false);
+        return;
+      }
+
       if (response.data.status === 'processing' || response.data.status === 'submitted') {
         setTimeout(fetchTranscription, 10000);
       } else {
         setIsLoading(false);
       }
     } catch (error) {
-      console.error('Error fetching transcription:', error);
-      setError('Failed to fetch transcription. Please try again later.');
+      setError({
+        message: 'Failed to fetch transcription',
+        details: error.response?.data?.message || error.message,
+      });
       setIsLoading(false);
     }
   }, [transcriptionId]);
@@ -405,11 +419,12 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
         </div>
       )}
 
-      {error && (
+      {error.message && (
         <div className='mt-4 p-4 bg-red-100 text-red-700 rounded-md'>
           <p className='text-sm flex items-center'>
             <AlertCircle className='mr-2' size={18} />
-            {error}
+            {error.message}
+            {error.details && <span className='block mt-2 text-xs text-red-600'>Details: {error.details}</span>}
           </p>
         </div>
       )}

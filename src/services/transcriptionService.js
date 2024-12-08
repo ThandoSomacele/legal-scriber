@@ -130,53 +130,68 @@ export const updateTranscriptionStatus = async (transcription, status, azureResp
 // Rename to match the import in cronService
 const checkAndUpdateTranscriptionStatus = async transcription => {
   try {
-    logTranscriptionStatus(transcription._id, transcription.status);
-
     if (!transcription.transcriptionUrl) {
-      const error = new Error('Transcription URL is missing');
-      logError(error, {
-        transcriptionId: transcription._id,
+      throw new Error('Transcription URL is missing');
+    }
+
+    // Add timeout check
+    const startTime = Date.now();
+    const TIMEOUT_LIMIT = 300000; // 5 minutes
+
+    while (true) {
+      const response = await axios.get(transcription.transcriptionUrl, {
+        headers: {
+          'Ocp-Apim-Subscription-Key': process.env.VITE_SPEECH_KEY,
+        },
       });
-      await updateTranscriptionStatus(transcription, 'error');
-      return 'error';
+
+      if (!response.data) {
+        throw new Error('No response data from Speech Service');
+      }
+
+      // Check timeout
+      if (Date.now() - startTime > TIMEOUT_LIMIT) {
+        throw new Error('Transcription processing timeout');
+      }
+
+      const azureStatus = response.data.status;
+      // Log detailed status
+      logger.info('Azure Speech Service Status:', {
+        transcriptionId: transcription._id,
+        status: azureStatus,
+        details: response.data,
+      });
+
+      let status;
+      switch (azureStatus) {
+        case 'NotStarted':
+          status = 'pending';
+          break;
+        case 'Running':
+          status = 'processing';
+          break;
+        case 'Succeeded':
+          status = 'completed';
+          break;
+        case 'Failed':
+          throw new Error(`Transcription failed: ${response.data.error || 'Unknown error'}`);
+        default:
+          throw new Error(`Unknown status: ${azureStatus}`);
+      }
+
+      await updateTranscriptionStatus(transcription, status, response);
+      return status;
     }
-
-    const response = await axios.get(transcription.transcriptionUrl, {
-      headers: {
-        'Ocp-Apim-Subscription-Key': process.env.VITE_SPEECH_KEY,
-      },
-    });
-
-    const azureStatus = response.data.status;
-    let status;
-
-    // Map Azure status to our application status
-    switch (azureStatus) {
-      case 'NotStarted':
-        status = 'pending';
-        break;
-      case 'Running':
-        status = 'processing';
-        break;
-      case 'Succeeded':
-        status = 'completed';
-        break;
-      case 'Failed':
-        status = 'failed';
-        break;
-      default:
-        status = 'error';
-    }
-
-    await updateTranscriptionStatus(transcription, status, response);
-    return status;
   } catch (error) {
-    logError(error, {
+    logger.error('Transcription Service Error:', {
+      error: error.message,
       transcriptionId: transcription._id,
-      action: 'check_status',
+      speechKey: process.env.VITE_SPEECH_KEY ? 'Set' : 'Missing',
+      serviceRegion: process.env.VITE_SERVICE_REGION,
+      stack: error.stack,
     });
-    await updateTranscriptionStatus(transcription, 'error');
-    return 'error';
+    await updateTranscriptionStatus(transcription, 'error', null);
+    throw error;
   }
 };
 
