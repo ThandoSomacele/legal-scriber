@@ -5,13 +5,13 @@ import thandoImg from './../assets/images/founders/thando-somacele.webp';
 
 const AboutUsSection = () => {
   const founders = [
-    // {
-    //   name: 'Sharon',
-    //   role: 'Co-founder & Legal Expert',
-    //   image: sharonImg,
-    //   description:
-    //     'With a distinguished degree in Law, Sharon brings a wealth of legal knowledge to Legal Scriber. Her expertise ensures our AI solutions are grounded in solid legal principles.',
-    // },
+    {
+      name: 'Sharon',
+      role: 'Co-founder & Legal Expert',
+      image: sharonImg,
+      description:
+        'With a distinguished degree in Law, Sharon brings a wealth of legal knowledge to Legal Scriber. Her expertise ensures our AI solutions are grounded in solid legal principles.',
+    },
     {
       name: 'Thando Somacele',
       role: 'Co-founder & Tech Innovator',

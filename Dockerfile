@@ -18,12 +18,14 @@ RUN npm install concurrently nodemon --save-dev
 
 # Environment setup
 ENV NODE_ENV=development
+ENV WATCHPACK_POLLING=true
+ENV CHOKIDAR_USEPOLLING=true
 
 # Expose necessary ports
 EXPOSE 8000
 EXPOSE 5173
 
-# Start both server and Vite to run concurrently
+# Start both server and Vite with hot reloading enabled
 CMD ["npm", "run", "dev"]
 
 # Production stage

@@ -11,6 +11,10 @@ export default defineConfig(({ mode }) => {
     server: {
       host: '0.0.0.0',
       port: 5173,
+      watch: {
+        usePolling: true, // Enable polling for hot reload
+        interval: 1000, // Check for changes every second
+      },
       proxy: {
         '/api': {
           target: 'http://localhost:8000',
@@ -18,9 +22,25 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // Split vendor chunks
+            vendor: ['react', 'react-dom', 'react-router-dom'],
+            // UI components chunk
+            ui: ['lucide-react', 'recharts'],
+            // Authentication related
+            auth: ['jwt-decode', 'axios'],
+            // Editor related
+            editor: ['react-markdown', 'react-markdown-editor-lite'],
+          },
+        },
+      },
+      chunkSizeWarningLimit: 1000, // Increase warning limit to 1000kb
+    },
     resolve: {
       alias: {
-        // Provide empty module for crypto (since we only need it server-side)
         crypto: 'crypto-js',
       },
     },

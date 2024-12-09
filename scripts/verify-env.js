@@ -2,27 +2,32 @@
 import dotenv from 'dotenv';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import logger from '../src/utils/logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function verifyEnv() {
   try {
-    // Try loading .env but don't fail if not found in production
     dotenv.config({ path: join(__dirname, '..', '.env') });
   } catch (err) {
     console.log('No .env file found, using environment variables');
   }
 
-  // List of required environment variables
-  const requiredVars = [
+  // Core required variables for all environments
+  const coreVars = ['JWT_SECRET', 'COSMOSDB_CONNECTION_STRING'];
+
+  // Additional variables required only in production
+  const productionVars = [
     'AZURE_OPENAI_API_KEY',
     'AZURE_OPENAI_ENDPOINT',
     'AZURE_OPENAI_ACCOUNT_NAME',
     'VITE_SPEECH_KEY',
     'VITE_SERVICE_REGION',
-    'COSMOSDB_CONNECTION_STRING',
-    'JWT_SECRET',
+    'AZURE_COMMUNICATION_CONNECTION_STRING',
   ];
+
+  // Check required variables based on environment
+  const requiredVars = process.env.NODE_ENV === 'production' ? [...coreVars, ...productionVars] : coreVars;
 
   const missing = requiredVars.filter(varName => !process.env[varName]);
 
@@ -31,10 +36,17 @@ function verifyEnv() {
     missing.forEach(varName => {
       console.error(`   - ${varName}`);
     });
-    process.exit(1);
+
+    // Only exit in production; warn in development
+    if (process.env.NODE_ENV === 'production') {
+      process.exit(1);
+    } else {
+      console.warn('⚠️  Running in development mode with missing variables');
+    }
   }
 
   console.log('✅ Environment variables verified successfully');
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 }
 
 verifyEnv();

@@ -10,6 +10,10 @@ services:
       - ./src:/app/src
       - ./server.js:/app/server.js
       - ./.env:/app/.env
+      - ./vite.config.js:/app/vite.config.js
+      - ./tailwind.config.js:/app/tailwind.config.js
+      - ./postcss.config.js:/app/postcss.config.js
+      - ./index.html:/app/index.html
     environment:
       - AZURE_OPENAI_ACCOUNT_NAME=${AZURE_OPENAI_ACCOUNT_NAME}
       - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
@@ -34,6 +38,8 @@ services:
       - AZURE_COMMUNICATION_CONNECTION_STRING=${AZURE_COMMUNICATION_CONNECTION_STRING}
       - AZURE_SENDER_EMAIL=${AZURE_SENDER_EMAIL}
       - NODE_ENV=development
+      - WATCHPACK_POLLING=true # Add this for Windows compatibility
+      - CHOKIDAR_USEPOLLING=true # Add this for file watching
     command: npm run dev
 
 networks:

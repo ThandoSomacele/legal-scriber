@@ -2,9 +2,57 @@
 import { EmailClient } from '@azure/communication-email';
 import logger from '../utils/logger.js';
 
+// Development mode email service for local testing
+class DevEmailService {
+  constructor() {
+    logger.info('📧 Development Email Service initialized - emails will be logged to console');
+  }
+
+  async sendEmail(to, subject, htmlContent) {
+    logger.info('📧 Development Mode - Email Details:', {
+      to,
+      subject,
+      preview: htmlContent.substring(0, 200) + '...',
+      timestamp: new Date().toISOString(),
+    });
+    return {
+      id: `dev-${Date.now()}`,
+      status: 'simulated',
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  // Implement the same interface as AzureEmailService
+  async sendSignupConfirmation(user, confirmationToken) {
+    const confirmationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/confirm-email/${confirmationToken}`;
+    logger.info('📧 Development Mode - Signup Confirmation:', {
+      user: user.email,
+      confirmationUrl,
+    });
+    return this.sendEmail(
+      user.email,
+      'Welcome to Legal Scriber - Please Confirm Your Email',
+      `Development Mode - Confirmation URL: ${confirmationUrl}`
+    );
+  }
+
+  async sendPasswordResetEmail(user, resetToken) {
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password/${resetToken}`;
+    logger.info('📧 Development Mode - Password Reset:', {
+      user: user.email,
+      resetUrl,
+    });
+    return this.sendEmail(
+      user.email,
+      'Legal Scriber - Password Reset Request',
+      `Development Mode - Reset URL: ${resetUrl}`
+    );
+  }
+}
+
+// Production Azure email service with your existing implementation
 class AzureEmailService {
   constructor() {
-    // Initialize email client with connection string
     if (!process.env.AZURE_COMMUNICATION_CONNECTION_STRING) {
       throw new Error('Azure Communication Connection String is not defined');
     }
@@ -12,16 +60,9 @@ class AzureEmailService {
     logger.info('Azure Email Client initialized successfully');
   }
 
-  /**
-   * Sends an email using Azure Communication Services
-   * @param {string} to - Recipient email address
-   * @param {string} subject - Email subject
-   * @param {string} htmlContent - HTML content of the email
-   * @returns {Promise} - Result of the email send operation
-   */
+  // Your existing email template and sending methods
   async sendEmail(to, subject, htmlContent) {
     try {
-      // Validate required parameters
       if (!to || !subject || !htmlContent) {
         throw new Error('Missing required email parameters');
       }
@@ -33,15 +74,10 @@ class AzureEmailService {
           html: htmlContent,
         },
         recipients: {
-          to: [
-            {
-              address: to,
-            },
-          ],
+          to: [{ address: to }],
         },
       };
 
-      // Send email and wait for completion
       const poller = await this.emailClient.beginSend(message);
       const result = await poller.pollUntilDone();
 
@@ -62,11 +98,7 @@ class AzureEmailService {
     }
   }
 
-  /**
-   * Sends a signup confirmation email
-   * @param {Object} user - User object containing email and name
-   * @param {string} confirmationToken - Email confirmation token
-   */
+  // Your existing template methods
   async sendSignupConfirmation(user, confirmationToken) {
     if (!user?.email) {
       throw new Error('User email is required');
@@ -94,11 +126,6 @@ class AzureEmailService {
     return this.sendEmail(user.email, 'Welcome to Legal Scriber - Please Confirm Your Email', htmlContent);
   }
 
-  /**
-   * Sends a password reset email
-   * @param {Object} user - User object containing email and name
-   * @param {string} resetToken - Password reset token
-   */
   async sendPasswordResetEmail(user, resetToken) {
     if (!user?.email) {
       throw new Error('User email is required');
@@ -127,6 +154,14 @@ class AzureEmailService {
   }
 }
 
-// Create and export a singleton instance
-const emailService = new AzureEmailService();
+// Create and export the appropriate service based on environment
+let emailService;
+
+try {
+  emailService = process.env.NODE_ENV === 'development' ? new DevEmailService() : new AzureEmailService();
+} catch (error) {
+  logger.warn('Failed to initialize Azure Email Service, falling back to development mode:', error.message);
+  emailService = new DevEmailService();
+}
+
 export default emailService;
