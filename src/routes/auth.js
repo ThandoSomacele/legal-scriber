@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto'; // Add this import for token hashing
 import User from '../models/User.js';
-import emailService from '../services/azureEmailService.js';
+import azureEmailService from '../services/azureEmailService.js';
 import logger from '../utils/logger.js';
 
 const router = express.Router();
@@ -36,12 +36,13 @@ router.post('/signup', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(password, salt);
 
+    // Save user first
     await user.save();
     logger.info(`New user created: ${user._id}`);
 
     // Send confirmation email using Azure Communication Services
     try {
-      const emailResult = await emailService.sendSignupConfirmation(user, confirmationToken);
+      const emailResult = await azureEmailService.sendSignupConfirmation(user, confirmationToken);
       logger.info(`Confirmation email sent successfully for: ${email}`, {
         operationId: emailResult.id,
         status: emailResult.status,
@@ -120,7 +121,7 @@ router.post('/forgot-password', async (req, res) => {
 
     // Send password reset email using Azure Communication Services
     try {
-      const emailResult = await emailService.sendPasswordResetEmail(user, resetToken);
+      const emailResult = await azureEmailService.sendPasswordResetEmail(user, resetToken);
       logger.info(`Password reset email sent successfully for: ${email}`, {
         operationId: emailResult.id,
         status: emailResult.status,
@@ -204,7 +205,7 @@ router.post('/forgot-password', async (req, res) => {
 
     // Send password reset email
     try {
-      await emailService.sendPasswordResetEmail(user, resetToken);
+      await azureEmailService.sendPasswordResetEmail(user, resetToken);
       logger.info(`Password reset email handled for: ${email}`);
     } catch (emailError) {
       logger.warn('Error handling password reset email:', emailError);

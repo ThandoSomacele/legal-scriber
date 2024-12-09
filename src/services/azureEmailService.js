@@ -2,109 +2,77 @@
 import { EmailClient } from '@azure/communication-email';
 import logger from '../utils/logger.js';
 
-/**
- * Azure Communication Services Email Service
- * Handles all email communications using Azure Communication Services
- */
 class AzureEmailService {
   constructor() {
-    this.emailClient = null;
-    this.initialize();
-  }
-
-  /**
-   * Initialises the Azure Email client with connection string
-   */
-  initialize() {
-    try {
-      const connectionString = process.env.AZURE_COMMUNICATION_CONNECTION_STRING;
-      if (!connectionString) {
-        throw new Error('Azure Communication Connection String is not defined');
-      }
-      this.emailClient = new EmailClient(connectionString);
-      logger.info('Azure Email Client initialized successfully');
-    } catch (error) {
-      logger.error('Failed to initialize Azure Email client:', error);
-      throw error;
+    // Initialize email client with connection string
+    if (!process.env.AZURE_COMMUNICATION_CONNECTION_STRING) {
+      throw new Error('Azure Communication Connection String is not defined');
     }
+    this.emailClient = new EmailClient(process.env.AZURE_COMMUNICATION_CONNECTION_STRING);
+    logger.info('Azure Email Client initialized successfully');
   }
 
   /**
-   * Sends email using Azure Communication Services
-   * @param {Object} emailDetails - Contains email sending details
-   * @returns {Promise} - Returns the email send operation result
+   * Sends an email using Azure Communication Services
+   * @param {string} to - Recipient email address
+   * @param {string} subject - Email subject
+   * @param {string} htmlContent - HTML content of the email
+   * @returns {Promise} - Result of the email send operation
    */
-  async sendEmail(emailDetails) {
+  async sendEmail(to, subject, htmlContent) {
     try {
-      const { to, subject, htmlContent, plainText } = emailDetails;
+      // Validate required parameters
+      if (!to || !subject || !htmlContent) {
+        throw new Error('Missing required email parameters');
+      }
 
       const message = {
-        senderAddress: process.env.AZURE_EMAIL_SENDER_ADDRESS,
+        senderAddress: process.env.AZURE_SENDER_EMAIL,
         content: {
           subject,
           html: htmlContent,
-          plainText: plainText || htmlContent.replace(/<[^>]+>/g, ''), // Strip HTML if plainText not provided
         },
         recipients: {
           to: [
             {
               address: to,
-              displayName: emailDetails.displayName,
             },
           ],
         },
       };
 
-      // Handle attachments if present
-      if (emailDetails.attachments) {
-        message.attachments = emailDetails.attachments.map(attachment => ({
-          name: attachment.name,
-          contentType: attachment.contentType,
-          contentInBase64: attachment.content,
-        }));
-      }
-
-      // Start the send operation
+      // Send email and wait for completion
       const poller = await this.emailClient.beginSend(message);
+      const result = await poller.pollUntilDone();
 
-      // Implement custom polling with timeout
-      const POLLER_WAIT_TIME = 10; // seconds
-      let timeElapsed = 0;
+      logger.info('Email sent successfully', {
+        recipient: to,
+        messageId: result.id,
+        status: result.status,
+      });
 
-      while (!poller.isDone()) {
-        await poller.poll();
-        console.log('Email send polling in progress');
-        await new Promise(resolve => setTimeout(resolve, POLLER_WAIT_TIME * 1000));
-        timeElapsed += POLLER_WAIT_TIME;
-
-        if (timeElapsed > 180) {
-          // 3 minutes timeout
-          throw new Error('Email sending operation timed out');
-        }
-      }
-
-      // Check the result
-      const result = poller.getResult();
-      if (result.status === 'Succeeded') {
-        logger.info(`Email sent successfully. Operation ID: ${poller.getOperationId()}`);
-        return result;
-      } else {
-        throw new Error(`Email sending failed with status: ${result.status}`);
-      }
+      return result;
     } catch (error) {
-      logger.error('Email sending error:', error);
+      logger.error('Error sending email:', {
+        recipient: to,
+        error: error.message,
+        stack: error.stack,
+      });
       throw error;
     }
   }
 
   /**
-   * Sends signup confirmation email
+   * Sends a signup confirmation email
    * @param {Object} user - User object containing email and name
    * @param {string} confirmationToken - Email confirmation token
    */
   async sendSignupConfirmation(user, confirmationToken) {
-    const confirmationUrl = `${process.env.FRONTEND_URL}/confirm-email/${confirmationToken}`;
+    if (!user?.email) {
+      throw new Error('User email is required');
+    }
 
+    const confirmationUrl = `${process.env.FRONTEND_URL}/confirm-email/${confirmationToken}`;
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #4F46E5;">Welcome to Legal Scriber!</h2>
@@ -123,22 +91,20 @@ class AzureEmailService {
       </div>
     `;
 
-    return this.sendEmail({
-      to: user.email,
-      subject: 'Welcome to Legal Scriber - Please Confirm Your Email',
-      htmlContent,
-      displayName: user.name,
-    });
+    return this.sendEmail(user.email, 'Welcome to Legal Scriber - Please Confirm Your Email', htmlContent);
   }
 
   /**
-   * Sends password reset email
+   * Sends a password reset email
    * @param {Object} user - User object containing email and name
    * @param {string} resetToken - Password reset token
    */
   async sendPasswordResetEmail(user, resetToken) {
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+    if (!user?.email) {
+      throw new Error('User email is required');
+    }
 
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #4F46E5;">Password Reset Request</h2>
@@ -157,15 +123,10 @@ class AzureEmailService {
       </div>
     `;
 
-    return this.sendEmail({
-      to: user.email,
-      subject: 'Legal Scriber - Password Reset Request',
-      htmlContent,
-      displayName: user.name,
-    });
+    return this.sendEmail(user.email, 'Legal Scriber - Password Reset Request', htmlContent);
   }
 }
 
-// Create a singleton instance
+// Create and export a singleton instance
 const emailService = new AzureEmailService();
 export default emailService;
