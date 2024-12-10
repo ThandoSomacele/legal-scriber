@@ -38,8 +38,8 @@ COPY package*.json ./
 # Install production dependencies
 RUN npm ci --only=production
 
-# Copy the built application and necessary files
-COPY dist/ ./dist/
+# Copy the built application from build stage
+COPY --from=build /app/dist ./dist/
 COPY server.js ./
 COPY src/ ./src/
 COPY envConfig.js ./
