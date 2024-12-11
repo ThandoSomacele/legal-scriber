@@ -100,21 +100,32 @@ if (process.env.NODE_ENV === 'production') {
 
 // Start server
 const port = process.env.PORT || 8000;
-app.listen(port, '0.0.0.0', () => {
-  logger.info(`Server is running on port ${port}`);
-  logger.info(`Environment: ${process.env.NODE_ENV}`);
-  logger.info(`API URL: ${envConfig.apiUrl}`);
-});
+const server = app
+  .listen(port, '0.0.0.0', () => {
+    logger.info(`Server is running on port ${port}`);
+    logger.info(`Environment: ${process.env.NODE_ENV}`);
+    logger.info(`API URL: ${envConfig.apiUrl}`);
+  })
+  .on('error', error => {
+    logger.error('Failed to start server:', error);
+    process.exit(1);
+  });
 
-// Global error handlers
-process.on('unhandledRejection', error => {
-  logger.error('Unhandled Promise Rejection:', error);
-});
-
-process.on('uncaughtException', error => {
-  logger.error('Uncaught Exception:', error);
-  // Exit process on uncaught exceptions
-  process.exit(1);
+// Add graceful shutdown handling
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM received. Performing graceful shutdown...');
+  server.close(async () => {
+    try {
+      // Close database connection gracefully
+      await mongoose.connection.close();
+      logger.info('Database connections closed.');
+      logger.info('Server closed. Exiting process.');
+      process.exit(0);
+    } catch (error) {
+      logger.error('Error during graceful shutdown:', error);
+      process.exit(1);
+    }
+  });
 });
 
 export default app;

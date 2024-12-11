@@ -42,6 +42,10 @@ COPY server.js ./
 COPY src/ ./src/
 COPY envConfig.js ./
 
+# Add healthcheck (new addition)
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD wget --quiet --tries=1 --spider http://localhost:8000/health || exit 1
+
 # Set production environment
 ENV NODE_ENV=production
 ENV PORT=8000
