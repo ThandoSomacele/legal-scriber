@@ -9,7 +9,9 @@ import sanitizeQuery from '../middleware/sanitizeQuery.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const configureMiddleware = app => {
+  // Apply sanitization middleware
   app.use(sanitizeQuery);
+
   // CORS configuration
   app.use(
     cors({
@@ -18,10 +20,10 @@ export const configureMiddleware = app => {
     })
   );
 
-  // JSON body parser
+  // JSON body parser with size limit
   app.use(express.json({ limit: '10mb' }));
 
-  // Serve static files in production
+  // Static file serving for production
   if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.join(__dirname, '../../dist')));
 
@@ -32,7 +34,7 @@ export const configureMiddleware = app => {
 
   // Error handling middleware
   app.use((err, req, res, next) => {
-    logger.error('Error:', err);
+    console.error('Error:', err);
     res.status(500).json({
       error: 'Something went wrong!',
       message: process.env.NODE_ENV === 'development' ? err.message : undefined,

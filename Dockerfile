@@ -32,13 +32,11 @@ CMD ["npm", "run", "dev"]
 FROM node:20-alpine AS production
 WORKDIR /app
 
-# Copy package files
+# Copy package files and install production dependencies
 COPY package*.json ./
-
-# Install production dependencies
 RUN npm ci --only=production
 
-# Copy the built application from build stage
+# Copy necessary files from build stage and source
 COPY --from=build /app/dist ./dist/
 COPY server.js ./
 COPY src/ ./src/
