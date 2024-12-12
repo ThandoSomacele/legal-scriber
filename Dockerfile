@@ -43,6 +43,7 @@ RUN npm ci --only=production
 COPY --from=build /app/dist ./dist/
 COPY server.js ./
 COPY src/ ./src/
+COPY scripts/ ./scripts/
 COPY envConfig.js ./
 COPY vite.config.js ./
 COPY tailwind.config.js ./
