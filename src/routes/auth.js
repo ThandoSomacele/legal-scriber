@@ -73,89 +73,62 @@ router.post('/signup', async (req, res) => {
   }
 });
 
-// Email confirmation endpoint - remains mostly the same but with improved error handling
+// Email confirmation endpoint - updated with better error handling and logging
 router.get('/confirm-email/:token', async (req, res) => {
   try {
+    // Hash the token from the URL for comparison
     const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
 
+    logger.info('Processing email confirmation request', { hashedToken });
+
+    // Find user with matching token that hasn't expired
     const user = await User.findOne({
       emailConfirmationToken: hashedToken,
       emailConfirmationExpires: { $gt: Date.now() },
     });
 
     if (!user) {
-      logger.warn('Invalid or expired confirmation token used');
-      return res.status(400).json({ message: 'Invalid or expired confirmation link' });
+      logger.warn('Invalid or expired confirmation token used', {
+        hashedToken,
+        expired: true,
+      });
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired confirmation link. Please request a new one.',
+      });
     }
 
-    // Update user
+    // Update user document
     user.isEmailConfirmed = true;
     user.emailConfirmationToken = undefined;
     user.emailConfirmationExpires = undefined;
+
+    // Save the updated user document
     await user.save();
 
-    logger.info(`Email confirmed for user: ${user._id}`);
-    res.json({ message: 'Email confirmed successfully' });
-  } catch (error) {
-    logger.error('Email confirmation error:', error);
-    res.status(500).json({ message: 'Error confirming email' });
-  }
-});
+    logger.info('Email confirmed successfully', {
+      userId: user._id,
+      email: user.email,
+    });
 
-// Password reset request endpoint with Azure email service
-router.post('/forgot-password', async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    const user = await User.findOne({ email });
-    if (!user) {
-      // Return 200 even if user not found for security
-      return res.status(200).json({
-        message: 'If an account exists with that email, you will receive password reset instructions.',
-      });
-    }
-
-    // Generate reset token
-    const resetToken = user.generatePasswordResetToken();
-    await user.save();
-
-    // Send password reset email using Azure Communication Services
-    try {
-      const emailResult = await azureEmailService.sendPasswordResetEmail(user, resetToken);
-      logger.info(`Password reset email sent successfully for: ${email}`, {
-        operationId: emailResult.id,
-        status: emailResult.status,
-      });
-    } catch (emailError) {
-      logger.error('Error sending password reset email:', {
-        error: emailError.message,
-        userId: user._id,
-        email: email,
-      });
-
-      // Reset the token if email fails
-      user.passwordResetToken = undefined;
-      user.passwordResetExpires = undefined;
-      await user.save();
-
-      // Don't expose email sending errors to the client
-      return res.status(200).json({
-        message: 'If an account exists with that email, you will receive password reset instructions.',
-      });
-    }
-
+    // Return success response
     res.status(200).json({
-      message:
-        process.env.NODE_ENV === 'development'
-          ? 'Password reset requested (check console for email details)'
-          : 'If an account exists with that email, you will receive password reset instructions.',
+      success: true,
+      message: 'Email confirmed successfully. You can now log in.',
     });
   } catch (error) {
-    logger.error('Password reset request error:', error);
-    res.status(500).json({ message: 'Error processing password reset request' });
+    logger.error('Email confirmation error:', {
+      error: error.message,
+      stack: error.stack,
+    });
+    res.status(500).json({
+      success: false,
+      message: 'An error occurred while confirming your email. Please try again.',
+    });
   }
 });
 
+// Login route - updated to check for email confirmation
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -163,73 +136,198 @@ router.post('/login', async (req, res) => {
     // Check if user exists
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials',
+      });
+    }
+
+    // Check if email is confirmed
+    if (!user.isEmailConfirmed) {
+      return res.status(401).json({
+        success: false,
+        message: 'Please confirm your email address before logging in.',
+      });
     }
 
     // Check if password matches
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials',
+      });
     }
 
     // Create token
-    const token = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: '1h' } // Ensure this is a string representing a timespan
-    );
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
-    res.status(200).json({ success: true, token });
+    res.status(200).json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    logger.error('Login error:', {
+      error: error.message,
+      stack: error.stack,
+    });
+    res.status(500).json({
+      success: false,
+      message: 'An error occurred during login. Please try again.',
+    });
   }
 });
 
-// Password reset request
+// Password reset request endpoint
 router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
 
+    // Find user by email
     const user = await User.findOne({ email });
+
+    // Always return the same response whether user exists or not (security best practice)
     if (!user) {
-      // Return 200 even if user not found for security
+      logger.info('Password reset requested for non-existent email', { email });
       return res.status(200).json({
+        success: true,
         message: 'If an account exists with that email, you will receive password reset instructions.',
       });
     }
 
     // Generate reset token
     const resetToken = user.generatePasswordResetToken();
-    await user.save();
+    await user.save({ validateBeforeSave: false });
 
-    // Send password reset email
     try {
-      await azureEmailService.sendPasswordResetEmail(user, resetToken);
-      logger.info(`Password reset email handled for: ${email}`);
+      // Send password reset email using Azure Communication Services
+      const emailResult = await azureEmailService.sendPasswordResetEmail(user, resetToken);
+
+      logger.info('Password reset email sent successfully', {
+        userId: user._id,
+        email: user.email,
+        messageId: emailResult.id,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'If an account exists with that email, you will receive password reset instructions.',
+      });
     } catch (emailError) {
-      logger.warn('Error handling password reset email:', emailError);
+      // Reset the token fields if email fails
       user.passwordResetToken = undefined;
       user.passwordResetExpires = undefined;
-      await user.save();
-    }
+      await user.save({ validateBeforeSave: false });
 
-    res.status(200).json({
-      message:
-        process.env.NODE_ENV === 'development'
-          ? 'Password reset requested (check console for email details)'
-          : 'If an account exists with that email, you will receive password reset instructions.',
-    });
+      logger.error('Error sending password reset email:', {
+        error: emailError.message,
+        userId: user._id,
+        email: user.email,
+      });
+
+      return res.status(500).json({
+        success: false,
+        message: 'There was an error sending the password reset email. Please try again later.',
+      });
+    }
   } catch (error) {
-    logger.error('Password reset request error:', error);
-    res.status(500).json({ message: 'Error processing password reset request' });
+    logger.error('Password reset request error:', {
+      error: error.message,
+      stack: error.stack,
+    });
+
+    res.status(500).json({
+      success: false,
+      message: 'An error occurred. Please try again later.',
+    });
   }
 });
 
-// Reset password
+// Reset password endpoint
 router.post('/reset-password/:token', async (req, res) => {
   try {
     const { password } = req.body;
+
+    // Basic password validation
+    if (!password || password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 8 characters long',
+      });
+    }
+
+    // Hash the token from the URL
+    const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
+
+    // Find user with valid reset token
+    const user = await User.findOne({
+      passwordResetToken: hashedToken,
+      passwordResetExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      logger.warn('Invalid or expired password reset token used', { hashedToken });
+      return res.status(400).json({
+        success: false,
+        message: 'Password reset token is invalid or has expired. Please request a new one.',
+      });
+    }
+
+    // Update password and clear reset token fields
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+
+    await user.save();
+
+    logger.info('Password reset successful', {
+      userId: user._id,
+      email: user.email,
+    });
+
+    // Optionally, send confirmation email
+    try {
+      await azureEmailService.sendEmail(
+        user.email,
+        'Password Reset Successful',
+        `<p>Your password has been successfully reset. If you did not perform this action, please contact support immediately.</p>`
+      );
+    } catch (emailError) {
+      // Log but don't fail the request if confirmation email fails
+      logger.warn('Failed to send password reset confirmation email', {
+        error: emailError.message,
+        userId: user._id,
+        email: user.email,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Password has been reset successfully. You can now log in with your new password.',
+    });
+  } catch (error) {
+    logger.error('Password reset error:', {
+      error: error.message,
+      stack: error.stack,
+    });
+
+    res.status(500).json({
+      success: false,
+      message: 'An error occurred while resetting your password. Please try again.',
+    });
+  }
+});
+
+// Add a route to validate reset token (useful for frontend validation)
+router.get('/validate-reset-token/:token', async (req, res) => {
+  try {
     const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
 
     const user = await User.findOne({
@@ -238,24 +336,29 @@ router.post('/reset-password/:token', async (req, res) => {
     });
 
     if (!user) {
-      return res.status(400).json({ message: 'Invalid or expired reset token' });
+      return res.status(400).json({
+        success: false,
+        valid: false,
+        message: 'Password reset token is invalid or has expired.',
+      });
     }
 
-    // Hash new password
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
-
-    // Clear reset token fields
-    user.passwordResetToken = undefined;
-    user.passwordResetExpires = undefined;
-
-    await user.save();
-    logger.info(`Password reset successful for user: ${user._id}`);
-
-    res.json({ message: 'Password reset successful' });
+    res.status(200).json({
+      success: true,
+      valid: true,
+      message: 'Password reset token is valid.',
+    });
   } catch (error) {
-    logger.error('Password reset error:', error);
-    res.status(500).json({ message: 'Error resetting password' });
+    logger.error('Token validation error:', {
+      error: error.message,
+      stack: error.stack,
+    });
+
+    res.status(500).json({
+      success: false,
+      valid: false,
+      message: 'An error occurred while validating the reset token.',
+    });
   }
 });
 
