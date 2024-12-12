@@ -291,7 +291,10 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
     if (!transcriptionId) return;
 
     try {
+      console.log('Fetching transcription:', transcriptionId); // Add debug logging
       const response = await apiClient.get(`/api/transcriptions/${transcriptionId}`);
+      console.log('Transcription response:', response.data); // Add debug logging
+
       setTranscription(response.data);
       localStorage.setItem('transcription', JSON.stringify(response.data));
 
@@ -304,12 +307,14 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
         return;
       }
 
+      // Continue polling if the transcription is still processing
       if (response.data.status === 'processing' || response.data.status === 'submitted') {
         setTimeout(fetchTranscription, 10000);
       } else {
         setIsLoading(false);
       }
     } catch (error) {
+      console.error('Fetch transcription error:', error); // Enhanced error logging
       setError({
         message: 'Failed to fetch transcription',
         details: error.response?.data?.message || error.message,
@@ -410,22 +415,30 @@ const TranscriptionDisplay = ({ transcriptionId, onSummaryGenerated, meetingType
             )}
           </button>
         </>
-      ) : (
+      ) : transcription?.status === 'processing' || transcription?.status === 'submitted' ? (
+        <div className='flex flex-col items-center justify-center h-64'>
+          <Loader className='animate-spin text-indigo-600 mb-4' size={48} />
+          <span className='text-lg text-indigo-600 mb-2'>Processing your transcription...</span>
+          <span className='text-sm text-gray-600'>This may take a few minutes depending on the audio length.</span>
+        </div>
+      ) : transcription?.status === 'error' ? (
         <div className='bg-red-50 p-4 rounded-md'>
           <p className='text-red-700'>
             There was an issue with your transcription: {transcription?.errorDetails || 'Unknown error'}
           </p>
           <p className='text-red-700 mt-2'>Please try uploading your audio files again.</p>
+          {/* Add debug information in development */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className='mt-4 p-2 bg-gray-100 rounded text-sm'>
+              <p>Debug Info:</p>
+              <pre className='whitespace-pre-wrap'>{JSON.stringify(transcription, null, 2)}</pre>
+            </div>
+          )}
         </div>
-      )}
-
-      {error.message && (
-        <div className='mt-4 p-4 bg-red-100 text-red-700 rounded-md'>
-          <p className='text-sm flex items-center'>
-            <AlertCircle className='mr-2' size={18} />
-            {error.message}
-            {error.details && <span className='block mt-2 text-xs text-red-600'>Details: {error.details}</span>}
-          </p>
+      ) : (
+        <div className='bg-yellow-50 p-4 rounded-md'>
+          <p className='text-yellow-700'>Transcription status: {transcription?.status || 'Unknown'}</p>
+          <p className='text-yellow-700 mt-2'>Please wait while we process your audio file.</p>
         </div>
       )}
     </div>
