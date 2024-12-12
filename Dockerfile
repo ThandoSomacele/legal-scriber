@@ -32,6 +32,9 @@ CMD ["npm", "run", "dev"]
 FROM node:20-alpine AS production
 WORKDIR /app
 
+# Install curl for healthcheck
+RUN apk --no-cache add curl
+
 # Copy package files and install production dependencies
 COPY package*.json ./
 RUN npm ci --only=production
@@ -41,14 +44,25 @@ COPY --from=build /app/dist ./dist/
 COPY server.js ./
 COPY src/ ./src/
 COPY envConfig.js ./
+COPY vite.config.js ./
+COPY tailwind.config.js ./
+COPY postcss.config.js ./
 
-# Add healthcheck (new addition)
+# Add healthcheck with curl instead of wget
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:8000/health || exit 1
 
-# Set production environment
+# Set production environment and port
 ENV NODE_ENV=production
 ENV PORT=8000
+ENV HOST=0.0.0.0
+
+# Create non-root user for security
+RUN addgroup -g 1001 nodejs && \
+    adduser -S -u 1001 -G nodejs nodejs && \
+    chown -R nodejs:nodejs /app
+
+USER nodejs
 
 # Expose the port
 EXPOSE 8000
