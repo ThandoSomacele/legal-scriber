@@ -1,6 +1,6 @@
 let envConfig = {
   development: {
-    apiUrl: 'http://localhost:8000',
+    apiUrl: 'http://localhost:3000',
     frontendUrl: 'http://localhost:5173',
     transcriptionTimeout: 300000, // 5 minutes
   },

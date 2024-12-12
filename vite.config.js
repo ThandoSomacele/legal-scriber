@@ -17,7 +17,7 @@ export default defineConfig(({ mode }) => {
       },
       proxy: {
         '/api': {
-          target: 'http://localhost:8000',
+          target: 'http://localhost:3000',
           changeOrigin: true,
         },
       },
@@ -52,7 +52,7 @@ export default defineConfig(({ mode }) => {
       'process.env': {
         NODE_ENV: JSON.stringify(env.NODE_ENV),
         VITE_API_URL: JSON.stringify(
-          env.NODE_ENV === 'production' ? 'https://api.legalscriber.co.za' : 'http://localhost:8000'
+          env.NODE_ENV === 'production' ? 'https://api.legalscriber.co.za' : 'http://localhost:3000'
         ),
         VITE_SERVICE_REGION: JSON.stringify(env.VITE_SERVICE_REGION),
         VITE_SPEECH_KEY: JSON.stringify(env.VITE_SPEECH_KEY),

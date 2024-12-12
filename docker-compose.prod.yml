@@ -5,7 +5,7 @@ services:
       context: .
       target: production
     ports:
-      - '8000:8000'
+      - '3000:3000'
     environment:
       - AZURE_OPENAI_ACCOUNT_NAME=${AZURE_OPENAI_ACCOUNT_NAME}
       - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}

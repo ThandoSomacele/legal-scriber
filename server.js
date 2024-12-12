@@ -164,7 +164,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // Enhanced server startup
-const port = process.env.PORT || 8000;
+const port = process.env.PORT || 3000;
 let server;
 
 const startServer = async () => {
