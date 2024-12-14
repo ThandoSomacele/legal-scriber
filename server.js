@@ -20,6 +20,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // Initialize express application
 const app = express();
 
+app.set('trust proxy', 1);
+
 // Verify required environment variables
 const requiredEnvVars = [
   'AZURE_OPENAI_API_KEY',
