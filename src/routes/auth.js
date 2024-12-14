@@ -12,7 +12,18 @@ import rateLimit from 'express-rate-limit';
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5, // 5 attempts
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   message: 'Too many attempts. Please try again later.',
+  // Add this configuration for better IP handling
+  keyGenerator: req => {
+    // Try to get IP from various sources
+    return req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
+  },
+  skip: req => {
+    // Skip rate limiting in development
+    return process.env.NODE_ENV === 'development';
+  },
 });
 
 const router = express.Router();

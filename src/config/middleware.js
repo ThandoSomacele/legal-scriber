@@ -9,6 +9,15 @@ import sanitizeQuery from '../middleware/sanitizeQuery.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const configureMiddleware = app => {
+  // Trust proxy setup - Add this before other middleware
+  if (process.env.NODE_ENV === 'production') {
+    // Trust first proxy in production
+    app.set('trust proxy', 1);
+  } else {
+    // Trust all proxies in development
+    app.set('trust proxy', true);
+  }
+
   // Apply sanitization middleware
   app.use(sanitizeQuery);
 
