@@ -3,7 +3,7 @@ import React from 'react';
 import Header from './Header';
 import Footer from './Footer';
 import SidebarNav from '../SidebarNav';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/authContext';
 import { useLocation } from 'react-router-dom';
 
 const MainLayout = ({ children }) => {

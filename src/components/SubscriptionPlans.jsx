@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import { initiateSubscription } from '../services/subscriptionService';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/authContext';
 import envConfig from '../../envConfig';
 import SandboxTestInfo from './SandboxTestInfo';
 

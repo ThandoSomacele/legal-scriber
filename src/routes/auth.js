@@ -3,9 +3,17 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto'; // Add this import for token hashing
+import auth from '../middleware/auth.js'; // Import the auth middleware
 import User from '../models/User.js';
 import azureEmailService from '../services/azureEmailService.js';
 import logger from '../utils/logger.js';
+import rateLimit from 'express-rate-limit';
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 attempts
+  message: 'Too many attempts. Please try again later.',
+});
 
 const router = express.Router();
 
@@ -115,6 +123,7 @@ router.get('/confirm-email/:token', async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Email confirmed successfully. You can now log in.',
+      redirectUrl: '/login', // Add this to support frontend redirection
     });
   } catch (error) {
     logger.error('Email confirmation error:', {
@@ -128,8 +137,66 @@ router.get('/confirm-email/:token', async (req, res) => {
   }
 });
 
+// Resend verification emails
+router.post('/resend-verification', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      // Don't reveal if user exists
+      return res.status(200).json({
+        success: true,
+        message: 'If an account exists, a new verification email will be sent.',
+      });
+    }
+
+    if (user.isEmailConfirmed) {
+      return res.status(400).json({
+        success: false,
+        message: 'This email is already verified.',
+      });
+    }
+
+    // Generate new confirmation token
+    const confirmationToken = user.generateEmailConfirmationToken();
+    await user.save();
+
+    // Send new confirmation email
+    try {
+      const emailResult = await azureEmailService.sendSignupConfirmation(user, confirmationToken);
+      logger.info(`Verification email resent successfully for: ${email}`, {
+        operationId: emailResult.id,
+        status: emailResult.status,
+      });
+    } catch (emailError) {
+      logger.error('Error resending verification email:', {
+        error: emailError.message,
+        userId: user._id,
+        email: email,
+      });
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send verification email. Please try again later.',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'If an account exists, a new verification email will be sent.',
+    });
+  } catch (error) {
+    logger.error('Resend verification error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'An error occurred. Please try again later.',
+    });
+  }
+});
+
 // Login route - updated to check for email confirmation
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -162,6 +229,7 @@ router.post('/login', async (req, res) => {
     // Create token
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
+    // Update the response in your login route
     res.status(200).json({
       success: true,
       token,
@@ -170,6 +238,7 @@ router.post('/login', async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        isEmailConfirmed: user.isEmailConfirmed, // Add this explicitly
       },
     });
   } catch (error) {
@@ -358,6 +427,65 @@ router.get('/validate-reset-token/:token', async (req, res) => {
       success: false,
       valid: false,
       message: 'An error occurred while validating the reset token.',
+    });
+  }
+});
+
+// Protected Routes (require authentication)
+
+// Get User Profile
+router.get('/profile', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+    res.json({ success: true, user });
+  } catch (error) {
+    logger.error('Profile fetch error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+    });
+  }
+});
+
+// Update User Profile
+router.put('/update-profile', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Update allowed fields
+    const allowedUpdates = ['name', 'email'];
+    const updates = Object.keys(req.body)
+      .filter(key => allowedUpdates.includes(key))
+      .reduce((obj, key) => {
+        obj[key] = req.body[key];
+        return obj;
+      }, {});
+
+    Object.assign(user, updates);
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      user,
+    });
+  } catch (error) {
+    logger.error('Profile update error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
     });
   }
 });

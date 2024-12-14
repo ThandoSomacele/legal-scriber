@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import AuthProvider from './contexts/AuthProvider';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
 import Home from './components/layouts/Home';
@@ -23,6 +23,7 @@ import PlanChange from './components/PlanChange';
 import UsageDashboard from './components/UsageDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import EmailConfirmation from './components/EmailConfirmation';
+import EmailVerification from './components/EmailVerification';
 
 function App() {
   const [transcriptionId, setTranscriptionId] = useState(null);
@@ -77,6 +78,7 @@ function App() {
             <Route path='/login' element={<Login />} />
             <Route path='/forgot-password' element={<ForgotPassword />} />
             <Route path='/reset-password/:token' element={<ResetPassword />} />
+            <Route path='/email-verification' element={<EmailVerification />} />
             <Route path='/confirm-email/:token' element={<EmailConfirmation />} />
             <Route path='/terms-and-conditions' element={<TermsAndConditions />} />
             <Route path='/privacy-policy' element={<PrivacyPolicy />} />

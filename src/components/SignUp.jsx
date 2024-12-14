@@ -1,52 +1,68 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { User, Mail, Lock, Loader, CheckCircle } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { User, Mail, Lock, Loader, AlertCircle } from 'lucide-react';
+import { useAuth } from '../contexts/authContext';
 
 const SignUp = () => {
+  // Form state
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
     confirmPassword: '',
   });
+
+  // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+
+  // Hooks
   const { signup } = useAuth();
   const navigate = useNavigate();
 
+  // Handle input changes
   const handleChange = e => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
     // Clear errors when user starts typing
     if (error) setError('');
   };
 
+  // Handle form submission
   const handleSubmit = async e => {
     e.preventDefault();
     setError('');
     setIsSubmitting(true);
 
+    // Validation checks
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       setIsSubmitting(false);
       return;
     }
 
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters long');
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
+      // Attempt signup
       await signup(formData.name, formData.email, formData.password);
-      setSuccess(true);
-      // Show success message for 2 seconds before redirecting
-      setTimeout(() => {
-        navigate('/transcribe');
-      }, 2000);
+
+      // Redirect to verification page on success
+      navigate('/email-verification', {
+        state: {
+          email: formData.email,
+          message: 'Please check your email to confirm your account',
+        },
+      });
     } catch (error) {
-      // Check for specific error message from the server
-      if (error.response && error.response.data && error.response.data.message) {
-        setError(error.response.data.message);
-      } else {
-        setError('Failed to create an account. Please try again.');
-      }
+      setError(error.response?.data?.message || 'Failed to create account');
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -54,6 +70,7 @@ const SignUp = () => {
   return (
     <div className='max-w-md mx-auto my-10 lg:my-32'>
       <h2 className='text-2xl font-bold text-indigo-700 mb-6'>Sign Up</h2>
+
       <form onSubmit={handleSubmit} className='space-y-4'>
         {/* Name Field */}
         <div>
@@ -62,7 +79,7 @@ const SignUp = () => {
           </label>
           <div className='mt-1 relative rounded-md shadow-sm'>
             <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
-              <User className='h-5 w-5 text-gray-400' aria-hidden='true' />
+              <User className='h-5 w-5 text-gray-400' />
             </div>
             <input
               type='text'
@@ -85,7 +102,7 @@ const SignUp = () => {
           </label>
           <div className='mt-1 relative rounded-md shadow-sm'>
             <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
-              <Mail className='h-5 w-5 text-gray-400' aria-hidden='true' />
+              <Mail className='h-5 w-5 text-gray-400' />
             </div>
             <input
               type='email'
@@ -108,7 +125,7 @@ const SignUp = () => {
           </label>
           <div className='mt-1 relative rounded-md shadow-sm'>
             <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
-              <Lock className='h-5 w-5 text-gray-400' aria-hidden='true' />
+              <Lock className='h-5 w-5 text-gray-400' />
             </div>
             <input
               type='password'
@@ -131,7 +148,7 @@ const SignUp = () => {
           </label>
           <div className='mt-1 relative rounded-md shadow-sm'>
             <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
-              <Lock className='h-5 w-5 text-gray-400' aria-hidden='true' />
+              <Lock className='h-5 w-5 text-gray-400' />
             </div>
             <input
               type='password'
@@ -151,17 +168,10 @@ const SignUp = () => {
         {/* Error Display */}
         {error && (
           <div className='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative' role='alert'>
-            <span className='block sm:inline'>{error}</span>
-          </div>
-        )}
-
-        {/* Success Message */}
-        {success && (
-          <div
-            className='bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative flex items-center'
-            role='alert'>
-            <CheckCircle className='h-5 w-5 mr-2' />
-            <span className='block sm:inline'>Account created successfully! Redirecting...</span>
+            <div className='flex items-center'>
+              <AlertCircle className='h-5 w-5 mr-2' />
+              <span className='block sm:inline'>{error}</span>
+            </div>
           </div>
         )}
 
@@ -181,6 +191,7 @@ const SignUp = () => {
         </button>
       </form>
 
+      {/* Login Link */}
       <p className='mt-4 text-center text-sm text-gray-600'>
         Already have an account?{' '}
         <Link to='/login' className='font-medium text-indigo-600 hover:text-indigo-500'>

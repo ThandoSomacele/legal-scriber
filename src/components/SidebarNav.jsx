@@ -2,7 +2,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { HomeIcon, FileText, Settings, User, LogOut, BarChart3, Mic } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/authContext';
 
 // Navigation item component for consistent styling
 const NavItem = ({ to, icon: Icon, label, isActive }) => (

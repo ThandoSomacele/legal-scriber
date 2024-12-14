@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Menu, X, User, ChevronDown, Mic } from 'lucide-react';
 import { Link as RouterLink, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/authContext';
 
 const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
