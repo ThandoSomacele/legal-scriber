@@ -15,10 +15,14 @@ const authLimiter = rateLimit({
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   message: 'Too many attempts. Please try again later.',
-  // Add this configuration for better IP handling
   keyGenerator: req => {
-    // Try to get IP from various sources
-    return req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
+    // Use the modern approach to get client IP
+    return (
+      req.ip ||
+      req.headers['x-forwarded-for'] ||
+      req.socket.remoteAddress || // Modern way to access remote address
+      'unknown'
+    );
   },
   skip: req => {
     // Skip rate limiting in development
