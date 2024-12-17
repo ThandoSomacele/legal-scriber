@@ -29,12 +29,12 @@ const userSchema = new mongoose.Schema({
     enum: ['user', 'admin'],
     default: 'user',
   },
+  emailConfirmationToken: String,
+  emailConfirmationExpires: Date,
   isEmailConfirmed: {
     type: Boolean,
     default: false,
   },
-  emailConfirmationToken: String,
-  emailConfirmationExpires: Date,
   subscriptionPlan: {
     type: String,
     enum: [null, 'basic', 'professional'],
@@ -77,17 +77,10 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
 
 // Update email confirmation methods
 userSchema.methods.generateEmailConfirmationToken = function () {
-  // Generate raw token
-  const rawToken = crypto.randomBytes(32).toString('hex');
-
-  // Store hashed version
-  this.emailConfirmationToken = crypto.createHash('sha256').update(rawToken).digest('hex');
-
-  // Set expiry
-  this.emailConfirmationExpires = Date.now() + 24 * 60 * 60 * 1000;
-
-  // Return raw token for email
-  return rawToken;
+  const token = crypto.randomBytes(32).toString('hex');
+  this.emailConfirmationToken = crypto.createHash('sha256').update(token).digest('hex');
+  this.emailConfirmationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+  return token;
 };
 
 // Used when confirming email

@@ -119,25 +119,31 @@ router.get('/confirm-email/:token', async (req, res) => {
       });
     }
 
-    if (user.isEmailConfirmed) {
-      await session.abortTransaction();
-      return res.status(200).json({
-        success: true,
-        message: 'Email already confirmed',
-      });
-    }
+    // Store token fields before updating
+    const tokenData = {
+      emailConfirmationToken: user.emailConfirmationToken,
+      emailConfirmationExpires: user.emailConfirmationExpires,
+    };
 
-    const isValid = user.verifyEmailConfirmationToken(req.params.token);
-    if (!isValid) {
-      await session.abortTransaction();
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid confirmation token',
-      });
-    }
+    // Update user status using $set to preserve other fields
+    await User.findByIdAndUpdate(
+      user._id,
+      {
+        $set: {
+          isEmailConfirmed: true,
+          emailConfirmationToken: tokenData.emailConfirmationToken,
+          emailConfirmationExpires: tokenData.emailConfirmationExpires,
+        },
+      },
+      { session }
+    );
 
-    await user.save({ session });
     await session.commitTransaction();
+
+    logger.info('Email confirmed successfully', {
+      userId: user._id,
+      email: user.email,
+    });
 
     res.status(200).json({
       success: true,

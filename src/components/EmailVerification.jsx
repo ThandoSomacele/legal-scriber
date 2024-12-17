@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
-import { Mail, Loader, AlertCircle, CheckCircle } from 'lucide-react';
+import { Mail, Loader, CheckCircle } from 'lucide-react';
+import apiClient from '../apiClient';
 import { useAuth } from '../contexts/authContext';
 
 const EmailVerification = () => {
@@ -8,7 +9,6 @@ const EmailVerification = () => {
   const [isResending, setIsResending] = useState(false);
   const [resendStatus, setResendStatus] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
 
   // Hooks
   const location = useLocation();
@@ -16,15 +16,14 @@ const EmailVerification = () => {
   const { resendVerificationEmail } = useAuth();
 
   // Get email from location state
-  const { email, message } = location.state || {};
+  const email = location.state?.email;
 
   // Verify we have necessary data
   useEffect(() => {
-    if (!email && !location.state?.email) {
+    if (!email) {
       navigate('/signup');
     }
-    setLoading(false);
-  }, [email, location.state, navigate]);
+  }, [email, navigate]);
 
   // Handle resend verification email
   const handleResendEmail = async () => {
@@ -38,49 +37,32 @@ const EmailVerification = () => {
     setResendStatus('');
 
     try {
-      const response = await resendVerificationEmail(email);
+      await resendVerificationEmail(email);
       setResendStatus('success');
 
-      // Log confirmation URL in development
+      // For development environment only
       if (process.env.NODE_ENV === 'development') {
-        console.log('Development: Check console for confirmation link');
+        console.log('Development: Check server logs for verification link');
       }
     } catch (error) {
       setResendStatus('error');
       setError(error.response?.data?.message || 'Failed to resend verification email');
-      console.error('Verification email error:', error);
     } finally {
       setIsResending(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className='min-h-screen flex items-center justify-center'>
-        <Loader className='h-8 w-8 text-indigo-600 animate-spin' />
-      </div>
-    );
-  }
-
   return (
     <div className='min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8'>
-      <div className='max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow'>
+      <div className='max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow-md'>
         <div className='text-center'>
           <Mail className='mx-auto h-12 w-12 text-indigo-600' />
-          <h2 className='mt-6 text-3xl font-bold text-gray-900'>Check Your Email</h2>
+          <h2 className='mt-6 text-3xl font-bold text-gray-900'>Verify Your Email</h2>
+          <p className='mt-2 text-sm text-gray-600'>
+            We've sent a verification link to <span className='font-medium'>{email}</span>
+          </p>
 
-          {/* Email verification instructions */}
-          {email ? (
-            <p className='mt-2 text-sm text-gray-600'>
-              We've sent a verification link to <span className='font-medium'>{email}</span>. Please check your email
-              and click the link to activate your account.
-            </p>
-          ) : (
-            <p className='mt-2 text-sm text-gray-600'>Please check your email for the verification link.</p>
-          )}
-
-          <div className='mt-6 space-y-4'>
-            {/* Resend Email Button */}
+          <div className='mt-8 space-y-4'>
             <button
               onClick={handleResendEmail}
               disabled={isResending}
@@ -93,39 +75,22 @@ const EmailVerification = () => {
                   Resending...
                 </>
               ) : (
-                'Resend verification email'
+                'Resend Verification Email'
               )}
             </button>
 
-            {/* Status Messages */}
             {resendStatus === 'success' && (
               <div className='flex items-center justify-center text-sm text-green-600'>
                 <CheckCircle className='h-5 w-5 mr-2' />
-                <span>Verification email resent successfully!</span>
+                <span>Verification email sent successfully!</span>
               </div>
             )}
 
-            {error && (
-              <div className='flex items-center justify-center text-sm text-red-600'>
-                <AlertCircle className='h-5 w-5 mr-2' />
-                <span>{error}</span>
-              </div>
-            )}
+            {error && <div className='text-sm text-red-600'>{error}</div>}
 
-            {/* Back to Login Link */}
-            <Link
-              to='/login'
-              className='block text-center text-sm font-medium text-indigo-600 hover:text-indigo-500 
-                       transition-colors duration-200'>
-              Return to login
+            <Link to='/login' className='block text-center text-sm font-medium text-indigo-600 hover:text-indigo-500'>
+              Back to Login
             </Link>
-
-            {/* Development Mode Notice */}
-            {process.env.NODE_ENV === 'development' && (
-              <p className='text-xs text-gray-500 mt-4'>
-                Development Mode: Check the console for the confirmation link.
-              </p>
-            )}
           </div>
         </div>
       </div>

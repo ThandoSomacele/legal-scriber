@@ -37,9 +37,9 @@ services:
       - FRONTEND_URL=${FRONTEND_URL}
       - AZURE_COMMUNICATION_CONNECTION_STRING=${AZURE_COMMUNICATION_CONNECTION_STRING}
       - AZURE_SENDER_EMAIL=${AZURE_SENDER_EMAIL}
-      - NODE_ENV=development
-      - WATCHPACK_POLLING=true # Add this for Windows compatibility
-      - CHOKIDAR_USEPOLLING=true # Add this for file watching
+      - NODE_ENV=${NODE_ENV}
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
     command: npm run dev
 
 networks:
