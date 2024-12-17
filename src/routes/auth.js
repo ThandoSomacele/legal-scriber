@@ -1,5 +1,6 @@
 // src/routes/auth.js
 import express from 'express';
+import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto'; // Add this import for token hashing
@@ -96,59 +97,61 @@ router.post('/signup', async (req, res) => {
   }
 });
 
-// Email confirmation endpoint - updated with better error handling and logging
+// Email confirmation endpoint
 router.get('/confirm-email/:token', async (req, res) => {
+  let session;
   try {
-    // Hash the token from the URL for comparison
+    session = await mongoose.startSession();
+    session.startTransaction();
+
     const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
 
-    logger.info('Processing email confirmation request', { hashedToken });
-
-    // Find user with matching token that hasn't expired
     const user = await User.findOne({
       emailConfirmationToken: hashedToken,
       emailConfirmationExpires: { $gt: Date.now() },
-    });
+    }).session(session);
 
     if (!user) {
-      logger.warn('Invalid or expired confirmation token used', {
-        hashedToken,
-        expired: true,
-      });
+      await session.abortTransaction();
       return res.status(400).json({
         success: false,
-        message: 'Invalid or expired confirmation link. Please request a new one.',
+        message: 'Invalid or expired confirmation link',
       });
     }
 
-    // Update user document
-    user.isEmailConfirmed = true;
-    user.emailConfirmationToken = undefined;
-    user.emailConfirmationExpires = undefined;
+    if (user.isEmailConfirmed) {
+      await session.abortTransaction();
+      return res.status(200).json({
+        success: true,
+        message: 'Email already confirmed',
+      });
+    }
 
-    // Save the updated user document
-    await user.save();
+    const isValid = user.verifyEmailConfirmationToken(req.params.token);
+    if (!isValid) {
+      await session.abortTransaction();
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid confirmation token',
+      });
+    }
 
-    logger.info('Email confirmed successfully', {
-      userId: user._id,
-      email: user.email,
-    });
+    await user.save({ session });
+    await session.commitTransaction();
 
-    // Return success response
     res.status(200).json({
       success: true,
-      message: 'Email confirmed successfully. You can now log in.',
-      redirectUrl: '/login', // Add this to support frontend redirection
+      message: 'Email confirmed successfully',
     });
   } catch (error) {
-    logger.error('Email confirmation error:', {
-      error: error.message,
-      stack: error.stack,
-    });
+    if (session) await session.abortTransaction();
+    logger.error('Email confirmation error:', error);
     res.status(500).json({
       success: false,
-      message: 'An error occurred while confirming your email. Please try again.',
+      message: 'Error confirming email',
     });
+  } finally {
+    if (session) await session.endSession();
   }
 });
 
@@ -210,12 +213,11 @@ router.post('/resend-verification', async (req, res) => {
   }
 });
 
-// Login route - updated to check for email confirmation
+// Login route - updated to check for email confirmation - Update the login route to use the new canLogin method
 router.post('/login', authLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Check if user exists
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
       return res.status(401).json({
@@ -224,15 +226,15 @@ router.post('/login', authLimiter, async (req, res) => {
       });
     }
 
-    // Check if email is confirmed
+    // Check email verification first
     if (!user.isEmailConfirmed) {
-      return res.status(401).json({
+      return res.status(403).json({
         success: false,
-        message: 'Please confirm your email address before logging in.',
+        message: 'Please verify your email before logging in',
+        needsVerification: true,
       });
     }
 
-    // Check if password matches
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
       return res.status(401).json({
@@ -241,10 +243,14 @@ router.post('/login', authLimiter, async (req, res) => {
       });
     }
 
-    // Create token
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' } // Increased from 1h for better UX
+    );
 
-    // Update the response in your login route
+    user.password = undefined;
+
     res.status(200).json({
       success: true,
       token,
@@ -253,17 +259,14 @@ router.post('/login', authLimiter, async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        isEmailConfirmed: user.isEmailConfirmed, // Add this explicitly
+        isEmailConfirmed: user.isEmailConfirmed,
       },
     });
   } catch (error) {
-    logger.error('Login error:', {
-      error: error.message,
-      stack: error.stack,
-    });
+    logger.error('Login error:', error);
     res.status(500).json({
       success: false,
-      message: 'An error occurred during login. Please try again.',
+      message: 'An error occurred during login',
     });
   }
 });

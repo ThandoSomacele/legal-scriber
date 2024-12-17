@@ -1,4 +1,3 @@
-// src/models/User.js
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
@@ -21,7 +20,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Please provide a password'],
     minlength: [8, 'Password must be at least 8 characters long'],
-    select: false,
+    select: false, // Don't return password by default
   },
   passwordResetToken: String,
   passwordResetExpires: Date,
@@ -46,62 +45,67 @@ const userSchema = new mongoose.Schema({
     enum: ['inactive', 'active', 'cancelled'],
     default: 'inactive',
   },
-  subscriptionHistory: [
-    {
-      planId: String,
-      startDate: Date,
-      endDate: Date,
-      status: String,
-    },
-  ],
   createdAt: {
     type: Date,
     default: Date.now,
   },
 });
 
-// Method to generate email confirmation token
-userSchema.methods.generateEmailConfirmationToken = function () {
-  const confirmationToken = crypto.randomBytes(32).toString('hex');
-
-  this.emailConfirmationToken = crypto.createHash('sha256').update(confirmationToken).digest('hex');
-
-  // Token expires in 24 hours
-  this.emailConfirmationExpires = Date.now() + 24 * 60 * 60 * 1000;
-
-  return confirmationToken;
-};
-
-// Hash password before saving
+// IMPORTANT: Only hash password if it's being modified
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) {
-    next();
+    return next();
   }
+  // Generate salt and hash password
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
+  next();
 });
 
-// Method to compare entered password with hashed password
+// Compare password method
 userSchema.methods.matchPassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
+  try {
+    // Since password field is not selected by default, ensure it's available
+    if (!this.password) {
+      return false;
+    }
+    return await bcrypt.compare(enteredPassword, this.password);
+  } catch (error) {
+    return false;
+  }
 };
 
-// Add password reset token generation method
-userSchema.methods.generatePasswordResetToken = function () {
-  const resetToken = crypto.randomBytes(32).toString('hex');
+// Update email confirmation methods
+userSchema.methods.generateEmailConfirmationToken = function () {
+  // Generate raw token
+  const rawToken = crypto.randomBytes(32).toString('hex');
 
-  // Hash token and set to resetPasswordToken field
-  this.passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+  // Store hashed version
+  this.emailConfirmationToken = crypto.createHash('sha256').update(rawToken).digest('hex');
 
-  // Set token expiry (2 hours)
-  this.passwordResetExpires = Date.now() + 2 * 60 * 60 * 1000;
+  // Set expiry
+  this.emailConfirmationExpires = Date.now() + 24 * 60 * 60 * 1000;
 
-  return resetToken;
+  // Return raw token for email
+  return rawToken;
 };
 
-// Add method to check if password reset token is valid
-userSchema.methods.isPasswordResetTokenValid = function () {
-  return this.passwordResetExpires > Date.now();
+// Used when confirming email
+userSchema.methods.verifyEmailConfirmationToken = function (rawToken) {
+  if (!this.emailConfirmationToken || !this.emailConfirmationExpires) {
+    return false;
+  }
+
+  const hashedReceivedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+  // Check both token match and expiry
+  if (this.emailConfirmationToken === hashedReceivedToken && this.emailConfirmationExpires > Date.now()) {
+    this.isEmailConfirmed = true;
+    this.emailConfirmationToken = undefined;
+    this.emailConfirmationExpires = undefined;
+    return true;
+  }
+  return false;
 };
 
 export default mongoose.model('User', userSchema);
